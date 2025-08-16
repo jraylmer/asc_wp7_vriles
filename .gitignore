@@ -1,0 +1,6 @@
+*.log
+*.pid
+*.png
+*.pyc
+*.svg
+
