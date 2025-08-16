@@ -1,6 +1,63 @@
 """General diagnostics module."""
 
+from datetime import datetime as dt
 import numpy as np
+
+from ..data import nc_tools
+
+
+def monthly_mean(dt_in, x_in, dt_bnds_mon=None):
+    """Calculate monthly mean of a time series.
+
+
+    Parameters
+    ----------
+    dt_in : array (nt,) of datetime.datetime
+        Datetime coordinates of the data to be averaged.
+
+    x_in : array (nt,*) of float
+        The data timeseries to be averaged (can be a single time series
+        or a 2D field).
+
+
+    Optional parameters
+    -------------------
+    dt_bnds_mon : array (nt_mon,2) of datetime.datetime or None
+        The monthly datetime bounds for which to compute monthly means
+        of the input data. Alternatively can be None (default), in which
+        case the months to average are determined from dt_in. In this case,
+        it is just assumed that the earliest and latest datetimes in dt_in
+        can be used to form the complete span of months to average.
+
+        In either case, any months for which there is no data defined in
+        dt_in, the returned monthly average is set to NaN.
+
+
+    Returns
+    -------
+    dt_bnd_mon : array (nt_mon,2) of datetime.datetime
+        Either exactly the same as the input if monthly datetime bounds
+        were provided, otherwise the automatically calculated values.
+
+    x_out : array (nt_mon,*) of float
+        The monthly-average time series.
+
+    """
+
+    if dt_bnds_mon is None:
+        dt_start = min(dt_in)
+        dt_end   = max(dt_in)
+        _, dt_bnds_mon, _, _ = \
+            nc_tools.dt_monthly(dt_start.year,
+                                n_years=dt_end.year - dt_start.year)
+
+    x_out = np.nan * np.ones(len(dt_bnds_mon))
+
+    for j in range(len(dt_bnds_mon)):
+        jt = (dt_in >= dt_bnds_mon[j,0]) & (dt_in < dt_bnds_mon[j,1])
+        x_out[j] = np.nanmean(x_in[jt], axis=0)
+
+    return dt_bnds_mon, x_out
 
 
 def sea_ice_area(siconc, areacello, mask=None, threshold=[0., 1.],
@@ -47,7 +104,11 @@ def sea_ice_area(siconc, areacello, mask=None, threshold=[0., 1.],
 
     weight = siconc if weight_by_siconc else 1.
 
+    if mask is None:
+        mask = 1.
+
     siarea = np.nansum( weight * areacello[np.newaxis,:,:]
+                               * mask[np.newaxis,:,:]
                                * (siconc >= threshold[0])
                                * (siconc <= threshold[1]),
                         axis=(1,2)) * units
@@ -87,8 +148,8 @@ def sea_ice_extent(siconc, areacello, **sea_ice_area_kwargs):
     return sea_ice_area(siconc, areacello, **sea_ice_area_kwargs)
 
 
-def sea_ice_volume(sithick, siconc, areacello, siconc_threshold=[0., 1.],
-                   units=1.E-12):
+def sea_ice_volume(sithick, siconc, areacello, mask=None,
+                   siconc_threshold=[0., 1.], units=1.E-12):
     """Compute total sea ice volume.
 
 
@@ -109,6 +170,10 @@ def sea_ice_volume(sithick, siconc, areacello, siconc_threshold=[0., 1.],
 
     Optional parameters
     -------------------
+    mask : 2D (nj, ni) or 3D (nt, nj, ni) array of float in the range [0., 1.]
+        Weighting factor applied for the purposes of masking locations.
+        Default = None (i.e., no spatial masking applied).
+
     siconc_threshold : array-like of float [low, high]
         Sea ice volume is calculated wherever siconc is greater than or equal
         to low AND less than or equal to high. Default = [0., 1.]. Must be in
@@ -126,7 +191,11 @@ def sea_ice_volume(sithick, siconc, areacello, siconc_threshold=[0., 1.],
 
     """
 
+    if mask is None:
+        mask = 1.
+
     sivolu = np.nansum( areacello[np.newaxis,:,:] * sithick
+                        * mask[np.newaxis,:,:]
                         * (siconc >= siconc_threshold[0])
                         * (siconc <= siconc_threshold[1]),
                         axis=(1,2)) * units
