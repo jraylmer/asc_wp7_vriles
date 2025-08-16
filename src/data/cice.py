@@ -94,12 +94,17 @@ def get_grid_data(fields=["ULON", "ULAT", "TLON", "TLAT", "tarea"],
     return grid_data
 
 
-def get_region_masks(append_mask=True, slice_to_atm_grid=False, ny=129):
+def get_region_masks(reg_nc_names=None, append_mask=True,
+                     slice_to_atm_grid=False, ny=129):
     """Load specified CICE region masks from a specified mask netCDF file.
 
 
     Optional parameters
     -------------------
+    reg_nc_names : list of str or None
+        Names of the NetCDF variables in the masks file corresponding to the
+        masks required. If None, gets this list from the config.
+
     append_mask : bool, default = True
         Whether to append names in region_nc_names to 'mask_', for the netCDF
         variable names (default).
@@ -121,9 +126,12 @@ def get_region_masks(append_mask=True, slice_to_atm_grid=False, ny=129):
 
     """
 
-    with nc.Dataset(cfg.data_path[f"regs{nx}"], mode="r") as ncdat:
+    if reg_nc_names is None:
+        reg_nc_names = cfg.reg_nc_names
+
+    with nc.Dataset(cfg.data_path[f"regs{ny}"], mode="r") as ncdat:
         region_masks = [np.array(ncdat.variables[append_mask*"mask_" + k])
-                        for k in cfg.region_names]
+                        for k in reg_nc_names]
 
     if slice_to_atm_grid and ny == 129:
         
@@ -580,17 +588,21 @@ def get_subdaily_processed_data(metric, nc_var_names, dt_min=dt(2018, 9, 1, 0),
     return date, data
 
 
-def get_processed_data_regional(metric, dt_min=dt(1980, 1, 1, 12, 0),
+def get_processed_data_regional(metric, nc_var, dt_min=dt(1980, 1, 1, 12, 0),
                                 dt_max=dt(2022, 12, 31, 12, 0),
                                 frequency="daily", region_nc_names=None,
                                 slice_to_atm_grid=False):
-    """Load specified CICE regional-'processed' diagnostic data. [FN1]
+    """Load specified CICE regional-'processed' diagnostic data.
 
 
     Parameters
     ----------
     metric : str
         Which processed diagnostic to load (e.g., 'sea_ice_extent').
+
+    nc_var : str
+        The name of the netCDF variable without the appended frequency or
+        region_name [FN1].
 
 
     Optional parameters
@@ -628,8 +640,9 @@ def get_processed_data_regional(metric, dt_min=dt(1980, 1, 1, 12, 0),
 
     Notes
     -----
-    [FN1] Reliant on consistent file naming, location, and netCDF variable
-          names with '_region_name' appended.
+    [FN1] Assumes that netCDF variable names for each region have
+          '_x_region_name' appended, where x is d or m (see src.io.config for
+          netCDF region names).
     [FN2] See documentation of slice_cice_data_to_atm_grid() in this module.
     [FN3] Following from [FN2], this is set to False by default so that the
           function does not try to slice 1D data such as sea_ice_extent.
@@ -643,18 +656,11 @@ def get_processed_data_regional(metric, dt_min=dt(1980, 1, 1, 12, 0),
     dt_min = dt_min.replace(hour=12, minute=0)
     dt_max = dt_max.replace(hour=12, minute=0)
 
-    # Determine netCDF variable name and filename formatting:
-    if "sea_ice_area" in metric:
-        metric = "sea_ice_area_regional"
-        nc_var = f"sia_{frequency[0]}"
-    elif "sea_ice_extent" in metric:
-        metric = "sea_ice_extent_regional"
-        nc_var = f"sie_{frequency[0]}"
-
     if region_nc_names is None:
         region_nc_names = cfg.region_names
 
-    nc_vars = ["time"] + [nc_var + f"_{region}" for region in region_nc_names]
+    nc_vars = ["time"] + [f"{nc_var}_{frequency[0]}_{region}"
+                          for region in region_nc_names]
 
     # Get full path to where this data is stored:
     dat_path = Path(cfg.data_path[f"proc_{frequency[0]}"], metric)
