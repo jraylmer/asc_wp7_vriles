@@ -90,9 +90,14 @@ def set_config(*cfg_files):
     cfg_loc = ConfigParser(interpolation=ExtendedInterpolation())
     cfg_loc.read(cfg_paths)
 
-    # General metadata:
-    globals()["author"] = cfg_loc.get("METADATA", "author", vars=os.environ)
-    globals()["label"] = cfg_loc.get("METADATA", "label", vars=os.environ)
+    # General metadata (some of these used in writing outputs if not blank):
+    globals()["author"]      = cfg_loc.get("METADATA", "author"     , vars=os.environ)
+    globals()["title"]       = cfg_loc.get("METADATA", "title"      , vars=os.environ)
+    globals()["institution"] = cfg_loc.get("METADATA", "institution", vars=os.environ)
+    globals()["contact"]     = cfg_loc.get("METADATA", "contact"    , vars=os.environ)
+
+    for k in ["cice", "amsr", "ssmi", "track", "atmo"]:
+        globals()[f"{k}_title"]  = cfg_loc.get(f"{k.upper()} DATA", "title")
 
     # Paths to 'history' (CICE output data) and post-'processed' data:
     for k in ["hist_d", "hist_m", "hist_3h", "proc_d", "proc_m"]:
@@ -149,8 +154,15 @@ def print_config_vars(sort_paths=True):
 
     print("\nMetadata")
     print("--------")
-    print(f"Author : {author}")
-    print(f"Label  : {label}")
+    print(f"Author      : {author}")
+    print(f"Institution : {institution}")
+    print(f"Contact     : {contact}")
+    print(f"Title       : {title}")
+
+    print("\nData source titles/labels")
+    print("-------------------------")
+    for k in ["amsr", "atmo", "cice", "ssmi", "track"]:
+        print(f"{k.upper():<5} : {globals()[f'{k}_title']}")
 
     if sort_paths:
         paths_keys = sorted(list(data_path.keys()))

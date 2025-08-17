@@ -357,8 +357,22 @@ def get_arrays(ncfiles, coordinate_vars=[], diagnostic_vars=[],
     return tuple(cvar_arrays + dvar_arrays)
 
 
-def save_netcdf(filename, nc_dims, nc_vars, nc_global_attrs={},
-                dir_save=Path.home(), nc_mode="w"):
+def _set_nc_attrs(nc_x, attrs, sort=True):
+    """Set attributes, attrs, (dict) for netCDF variable or file nc_x. If
+    sort, sets them in alphabetical order; otherwise, the order they are listed
+    in attrs.
+    """
+    if sort:
+        attrs_x = sorted(list(attrs.keys()))
+    else:
+        attrs_x = list(attrs.keys())
+
+    for a in attrs_x:
+        nc_x.setncattr(a, attrs[a])
+
+
+def save_netcdf(filename, nc_dims, nc_vars, nc_global_attr={},
+                dir_save=Path.home(), sort_attr=True, nc_mode="w"):
     """General function for saving data to a netCDF file.
 
 
@@ -396,11 +410,14 @@ def save_netcdf(filename, nc_dims, nc_vars, nc_global_attrs={},
 
     Optional parameters
     -------------------
-    nc_global_attrs : dict
+    nc_global_attr : dict
         NetCDF global attributes for the file. Can be empty (default).
 
     dir_save : str or pathlib.Path
         Path to the directory to save data.
+
+    sort_attr : bool, default = True
+        Whether to write variable and global attributes in alphabetical order.
 
     nc_mode : str, default = 'w'
         Read/write Mode for opening the netCDF data. Default is 'w'
@@ -415,8 +432,7 @@ def save_netcdf(filename, nc_dims, nc_vars, nc_global_attrs={},
 
     with nc.Dataset(Path(dir_save, filename), nc_mode) as ncdat:
 
-        for attr in nc_global_attrs.keys():
-            ncdat.setncattr(attr, nc_global_attrs[attr])
+        _set_nc_attrs(ncdat, nc_global_attr, sort=sort_attr)
 
         for dim in nc_dims.keys():
             ncdat.createDimension(dim, nc_dims[dim]["size"])
@@ -426,8 +442,8 @@ def save_netcdf(filename, nc_dims, nc_vars, nc_global_attrs={},
                                  nc_vars[var]["dims"])
 
             if "attr" in nc_vars[var].keys():
-                for attr in nc_vars[var]["attr"].keys():
-                    ncdat.variables[var].setncattr(attr, nc_vars[var]["attr"][attr])
+                _set_nc_attrs(ncdat.variables[var],
+                              nc_vars[var]["attr"], sort=sort_attr)
 
             ncdat.variables[var][:] = nc_vars[var]["data"][:]
 
