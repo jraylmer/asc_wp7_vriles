@@ -51,7 +51,14 @@ def monthly_mean(dt_in, x_in, dt_bnds_mon=None):
             nc_tools.dt_monthly(dt_start.year,
                                 n_years=dt_end.year - dt_start.year)
 
-    x_out = np.nan * np.ones(len(dt_bnds_mon))
+    if np.ndim(x_in) == 1:
+        x_out = np.nan * np.ones(len(dt_bnds_mon))
+    elif np.ndim(x_in) > 1:
+        x_out = np.nan * np.ones((len(dt_bnds_mon), *np.shape(x_in)[1:]))
+    else:
+        raise ValueError("src.diagnostics.monthly_mean: x_in must be at least "
+                         + "1-dimensional with the first dimension being time "
+                         + f"(got {np.ndim(x_in)})")
 
     for j in range(len(dt_bnds_mon)):
         jt = (dt_in >= dt_bnds_mon[j,0]) & (dt_in < dt_bnds_mon[j,1])
