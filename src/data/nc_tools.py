@@ -372,7 +372,8 @@ def _set_nc_attrs(nc_x, attrs, sort=True):
 
 
 def save_netcdf(filename, nc_dims, nc_vars, nc_global_attr={},
-                dir_save=Path.home(), sort_attr=True, nc_mode="w"):
+                dir_save=Path.home(), sort_attr=True, compress=True,
+                nc_mode="w"):
     """General function for saving data to a netCDF file.
 
 
@@ -419,6 +420,10 @@ def save_netcdf(filename, nc_dims, nc_vars, nc_global_attr={},
     sort_attr : bool, default = True
         Whether to write variable and global attributes in alphabetical order.
 
+    compress : bool, default = True
+        If True, compress output files (uses zlib compression with default
+        compression level for each variable).
+
     nc_mode : str, default = 'w'
         Read/write Mode for opening the netCDF data. Default is 'w'
         (i.e., write and overwrite if file already exists).
@@ -439,7 +444,8 @@ def save_netcdf(filename, nc_dims, nc_vars, nc_global_attr={},
 
         for var in nc_vars.keys():
             ncdat.createVariable(var, nc_vars[var]["data"].dtype,
-                                 nc_vars[var]["dims"])
+                                 nc_vars[var]["dims"],
+                                 compression="zlib" if compress else None)
 
             if "attr" in nc_vars[var].keys():
                 _set_nc_attrs(ncdat.variables[var],
