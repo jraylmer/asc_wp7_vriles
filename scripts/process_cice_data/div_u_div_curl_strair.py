@@ -22,11 +22,10 @@ def main():
     cmd = prsr.parse_args()
 
     cfg.set_config(*cmd.config)
-    
-    # Use keys "div" and "curl" for the wind stress divergence and curl
-    # respectively, to store data/metadata in dictionaries so that nc saving
-    # function can be used in a loop (see end of script). Both diagnostics are
-    # saved in the same file, 1 per year
+
+    # Use keys as the output variable names to store data/metadata in
+    # dictionaries so that nc saving function can be used in a loop (see end
+    # of script). All diagnostics are saved in the same file, 1 per year.
 
     # Attributes for time (variable name, and attributes including "units" and
     # "calendar" which are used to determine datetime values:
@@ -116,7 +115,7 @@ def main():
             nc_tools.dt_monthly(y, nc_units=nc_t_attr["units"],
                                 nc_calendar=nc_t_attr["calendar"])
 
-        # Load CICE daily strairx and strairy data from history:
+        # Load CICE daily velocity and atmosphere-ice stress data from history:
         _, data_cice = cice.get_history_data(
             ["uvel_d", "vvel_d", "strairx_d", "strairy_d"],
             dt_min=dt(y, 1, 1), dt_max=dt(y, 12, 31, 23, 0), frequency="daily",
