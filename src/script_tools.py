@@ -191,8 +191,8 @@ def get_id_vriles_options(cmd, header=True, footer=True):
                   + (" %" if cmd.threshold_type == "percent" else " * 10^6 km^2"))
 
     _print_option("Months allowed for VRILEs",
-        ("all" if len(cmd.monthsallowed) >= 12
-               else ", ".join([calendar.month_abbr[j] for j in cmd.monthsallowed])))
+        ("all" if len(cmd.months_allowed) >= 12
+               else ", ".join([calendar.month_abbr[j] for j in cmd.months_allowed])))
 
     _print_option("Range allowed for VRILEs",
                     ("-inf" if cmd.data_min is None else cmd.data_min) + " to "

@@ -1049,7 +1049,7 @@ def _get_vrile_date_bounds_indices(date, date_bnds_vriles):
     for k in range(np.shape(date_bnds_vriles)[0]):
         j_bounds[k,:] = [np.argwhere(  (yr == date_bnds_vriles[k,i].year)
                                      & (mn == date_bnds_vriles[k,i].month)
-                                     & (dy == date_bnds_vriles[k,i].day))
+                                     & (dy == date_bnds_vriles[k,i].day))[0,0]
                          for i in range(2)]
 
     return j_bounds
@@ -1073,7 +1073,7 @@ def _get_description_str(detrend_type="seasonal_periodic", nt_delta=5,
     # Ensure sorted unique list of months:
     mon_srt = sorted(list(set(months_allowed)))
 
-    if len(mon_sort) < 12:
+    if len(mon_srt) < 12:
         str_ins["months"] += "".join([calendar.month_name[x][0].upper()
                                       for x in mon_srt])
     else:

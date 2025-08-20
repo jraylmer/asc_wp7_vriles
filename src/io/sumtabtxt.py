@@ -9,12 +9,12 @@ from pathlib import Path
 
 from tabulate import tabulate
 
-import .config as cfg
+from . import config as cfg
 
 
 def _generated_txt(realtime_fmt="%H:%M UTC %d %b %Y"):
     """String for adding datetime stamp to summary table metadata."""
-    return f"Generated {dt.utcnow().strftime({realtime_fmt})} by {cfg.author}"
+    return f"Generated {dt.utcnow().strftime(realtime_fmt)} by {cfg.author}"
 
 
 def _detrend_type_txt(x):
@@ -370,7 +370,7 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
     save_dir : str or pathlib.Path, or None
         The directory to save all files to (note: sub-directories are created
         automatically for summary tables sorted by rank and by date). If
-        None, saves to current working directory.
+        None, gets from config.
 
     which : length 4 list or tuple of bool, default = [True]*4
         Which tables to save, where index j = 0, 1, 2, 3 corresponds to:
@@ -396,7 +396,7 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
         vresults_labels = cfg.reg_labels_long
 
     if save_dir is None:
-        save_dir = Path.cwd()
+        save_dir = cfg.data_path["tables"]
 
     # Make directories:
     Path(save_dir, "sorted_by_date").mkdir(parents=True, exist_ok=True)
@@ -409,7 +409,7 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
         # Save individual VRILE results tables ranked by date:
         for k in range(len(vresults_list)):
             fk = Path(save_dir, "sorted_by_date", f"{vresults_labels[k]}.txt")
-            save_table(vresults_list[k], fk, sort_by_rank=False, **kw)
+            save_vrile_table(vresults_list[k], fk, sort_by_rank=False, **kw)
             if verbose:
                 print(f"Saved: {str(fk)}")
 
@@ -417,7 +417,7 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
         # Save individual VRILE results tables ranked by value:
         for k in range(len(vresults_list)):
             fk = Path(save_dir, "sorted_by_rank", f"{vresults_labels[k]}.txt")
-            save_table(vresults_list[k], fk, sort_by_rank=True, **kw)
+            save_vrile_table(vresults_list[k], fk, sort_by_rank=True, **kw)
 
             if verbose:
                 print(f"Saved: {str(fk)}")

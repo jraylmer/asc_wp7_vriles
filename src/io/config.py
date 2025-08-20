@@ -131,12 +131,14 @@ def set_config(*cfg_files):
     globals()["data_path"]["atmo_m"]    = Path(cfg_loc.get("ATMO DATA", "dir_atmo_m")).resolve()
     globals()["data_path"]["atmo_forc"] = Path(cfg_loc.get("ATMO DATA", "dir_forc")).resolve()
     globals()["data_path"]["atmo_rean"] = Path(cfg_loc.get("ATMO DATA", "dir_rean")).resolve()
-    globals()["reanalysis_name"]        = cfg_loc.get("ATMO DATA", "name")
+    globals()["reanalysis_name"]        = cfg_loc.get("ATMO DATA", "title")
     globals()["reanalysis_frequency"]   = cfg_loc.get("ATMO DATA", "frequency")
 
     # Output directories:
-    globals()["fig_save_dir"] = Path(cfg_loc.get("FIGURES", "save_dir", vars=os.environ)).resolve()
-    globals()["ani_save_dir"] = Path(cfg_loc.get("ANIMATIONS", "save_dir", vars=os.environ)).resolve()
+    globals()["data_path"]["cache"]  = Path(cfg_loc.get("RESULTS", "dir_cache")).resolve()
+    globals()["data_path"]["tables"] = Path(cfg_loc.get("RESULTS", "dir_tables")).resolve()
+    globals()["fig_save_dir"]        = Path(cfg_loc.get("RESULTS", "dir_figures"   , vars=os.environ)).resolve()
+    globals()["ani_save_dir"]        = Path(cfg_loc.get("RESULTS", "dir_animations", vars=os.environ)).resolve()
 
     # General 'fallback' directory to search for other input data:
     globals()["data_path"]["misc"] = Path(cfg_loc.get("OTHER DATA", "dir", vars=os.environ)).resolve()
