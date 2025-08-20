@@ -98,17 +98,15 @@ def add_track_filter_cmd_args(prsr):
     argparse.ArgumentParser() instance.
     """
 
-    prsr.add_argument("--track-n-check", type=int,
-                      default=tracks.default_track["filter_n_check"],
+    prsr.add_argument("--track-n-check", type=int, default=1,
                       help="Consecutive points to apply filter criteria")
 
-    prsr.add_argument("--track-lat-min", type=float,
-                      default=tracks.default_track["filter_lat_min"],
+    prsr.add_argument("--track-lat-min", type=float, default=70.,
                       help="Minimum latitude threshold")
 
     prsr.add_argument("--track-vor-min", type=float,
-                      default=tracks.default_track["filter_vor_min"],
-                      help="Minimum vorticity threshold in 10^-5 s^-1")
+                      default=tracks.filter_vor_min,
+                      help="Minimum vorticity threshold in 1e-5 s-1")
 
     prsr.add_argument("--track-n-sector-neighbours", type=int, default=1,
                       choices=[0, 1],

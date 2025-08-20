@@ -11,12 +11,14 @@ from ..io import config as cfg
 # Default filter_vor_min below is the 95th percentile of all 1979-2023 tracks
 # entering 70N and poleward from the JRA-55 T63 dataset
 
+filter_vor_min = 8.889056
+
 _default_track = {
     "dt_0"            : dt(1979, 3, 31, 18),
     "step_hours"      : 6,
     "vor_unit_factor" : 1.E-5,
     "track_file_fmt"  : "tr_trs_pos_VOR850_{}",
-    "filter_vor_min"  : 8.889056,
+    "filter_vor_min"  : filter_vor_min,
     "filter_lat_min"  : 70.,
     "filter_n_check"  : 1,
     "filter_dt_range" : (dt(1979, 5, 1, 0), dt(1979, 9, 30, 18))
@@ -423,7 +425,7 @@ def get_filtered_tracks(year,
 
                 # Latitude must be greater than lat_min AND vorticity must be
                 # greater than vor_min for at least n_check consecutive points:
-                lat_and_vor_check = any(count_consecutive_true(
+                lat_and_vor_check = any(_count_consecutive_true(
                     (lats_k >= lat_min) & (vort_k >= vor_min)) >= n_check)
 
                 time_check = all([dt_range[0] <= x <= dt_range[1]

@@ -78,13 +78,33 @@ def load(filename, directory=None):
 
 
 def write_txt(data, filename, directory=None):
-    """Write data to a text file."""
+    """Write data to a text file.
+
+
+    Parameters
+    ----------
+    data : str
+        The text to write.
+
+    filename : str
+        The name of the text file to save.
+
+
+    Optional parameters
+    -------------------
+    directory : str or pathlib.Path or None
+        Directory within which to save. If None, gets from config.
+
+    """
 
     if not filename.endswith(".txt"):
         filename += ".txt"
 
     if not data.endswith("\n"):
         data += "\n"
+
+    if directory is None:
+        directory = cfg.data_path["cache"]
 
     with open(Path(directory, filename), "w+") as file:
         file.write(data)
