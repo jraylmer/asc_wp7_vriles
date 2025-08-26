@@ -37,6 +37,11 @@ _all_reg_info = {
     "canadian_archipelago"      : {"long_name": "Canadian Archipelago"           , "short_name": "CAN", "sector_lon_bnds": [(245., 275.)]           }
 }
 
+# Create lists of the above for convenience/public access:
+all_reg_nc_names        = list(_all_reg_info.keys())
+all_reg_long_names      = [_all_reg_info[k]["long_name"] for k in all_reg_nc_names]
+all_reg_short_names     = [_all_reg_info[k]["short_name"] for k in all_reg_nc_names]
+all_reg_sector_lon_bnds = [_all_reg_info[k]["sector_lon_bnds"] for k in all_reg_nc_names]
 
 # This dictionary of data paths to be accessed by other modules:
 data_path = {}

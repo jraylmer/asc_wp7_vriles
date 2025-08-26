@@ -34,8 +34,8 @@ def main():
     cfg.set_config(*cmd.config)
 
     if cmd.get_vor_threshold:
-        cmd.track_lat_min = 70.0
-        cmd.track_vor_min = 0.0
+        cmd.track_lat_min = 70.
+        cmd.track_vor_min = 0.
         print("Overriding track filter options to:")
         print(f"    --track-lat-min {cmd.track_lat_min}")
         print(f"    --track-vor-min {cmd.track_vor_min}")
@@ -45,11 +45,11 @@ def main():
     filter_kw = script_tools.get_track_filter_options(cmd, header=False,
                                                       footer=True)
 
-    years = np.arange(cmd.year_range[0], cmd.year_range[1]+1, 1)
+    years = np.arange(cmd.year_range[0], cmd.year_range[1] + 1, 1)
 
     filtered_tracks = tracks.get_filtered_tracks_multiyear(years, **filter_kw)
 
-    # 'filtered_tracks' returned above is actually seven returned values in
+    # 'filtered_tracks' returned above is actually eight returned values in
     # a tuple, corresponding to titles listed below. Save these 'headers' with
     # the actual data below (no need to get individual return values here):
     headers = ["TRACKS_PER_YEAR", "TRACK_IDS", "DATETIMES", "LONGITUDES",

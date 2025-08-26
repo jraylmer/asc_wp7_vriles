@@ -335,7 +335,7 @@ def get_filtered_tracks(year,
 
     Returns
     -------
-    Returns six lists of length n_filtered_tracks, each containing either float
+    Returns seven lists of length n_filtered_tracks each containing either float
     or arrays of length nt_k for each track k. The number of timesteps for each
     track k (i.e., nt_k) is different and, as with n_filtered_tracks, not known
     in advance:
@@ -507,7 +507,8 @@ def get_filtered_tracks_multiyear(years=np.arange(1979, 2024, 1, dtype=int),
         Total number of filtered tracks in each year.
 
     Then the concatenated lists of various track data as returned by function
-    get_filtered_tracks().
+    get_filtered_tracks(), of which there are seven, so that with the above,
+    there are eight returned values in total.
 
     """
 
