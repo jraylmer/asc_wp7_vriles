@@ -235,7 +235,7 @@ def allowed_sectors(n_nei=_default_allowed_sectors_n_neighbours, n_sec=9):
         # and accounting for the first being pan-Arctic
         j_sec_allowed = [
             [0],                  # PAN (0)
-            [n_sectors-1, 1, 2],  # LAB (1)
+            [n_sec-1, 1, 2],      # LAB (1)
             [1, 2, 3],            # GIN (2)
             [2, 3, 4],            # BAR (3)
             [3, 4, 5],            # KAR (4)
@@ -367,7 +367,7 @@ def get_filtered_tracks(year,
         track_data_dir = cfg.data_path["tracks"]
 
     if sector_lon_bnds is None:
-        sector_lon_bnds = cfg.reg_sector_lon_bnds
+        sector_lon_bnds = cfg.all_reg_sector_lon_bnds
 
     n_sectors = len(sector_lon_bnds)
 

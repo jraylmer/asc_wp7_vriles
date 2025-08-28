@@ -280,7 +280,7 @@ def get_track_vrile_matching_options(cmd, header=True, footer=True):
                   + ("s" if cmd.match_n_day_lag[0] != 1 else ""))
 
     _print_option("VRILE allowed lead time", f"{cmd.match_n_day_lag[1]} day"
-                  + ("s" if cmd.matchndaylag[1] != 1 else ""))
+                  + ("s" if cmd.match_n_day_lag[1] != 1 else ""))
 
     _print_option("Use joined VRILEs", "No" if cmd.match_unjoined_vriles else "Yes")
 
