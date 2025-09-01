@@ -97,17 +97,16 @@ def main():
     # Save the results dictionaries (now with classifications):
     cache.save(vrile_results, f"vriles_cice_{dt_min.year}-{dt_max.year}.pkl")
 
-    # Save summary tables (text files) to this directory:
-    txts_dir = Path(cfg.data_path["cache"],
-                    f"vriles_cice_{dt_min.year}-{dt_max.year}")
-
+    # Save the summary tables:
     additional_metadata = {"Time range" : f"{dt_min.strftime('%d %b %Y')} to "
                                           + f"{dt_max.strftime('%d %b %Y')}",
                            "Description": cfg.title}
 
-    sumtabtxt.save_tables(vrile_results, txts_dir, id_vriles_kw,
+    sumtabtxt.save_tables(vrile_results, id_vriles_kw,
             which=[True]*4, vresults_labels=cfg.reg_labels_short,
-            additional_metadata=additional_metadata, verbose=True)
+            additional_metadata=additional_metadata, verbose=True,
+            save_dir=Path(cfg.data_path["tables"],
+                          f"vriles_cice_{dt_min.year}-{dt_max.year}"))
 
 
     # Calculate other 'diagnostics over VRILEs' from history data

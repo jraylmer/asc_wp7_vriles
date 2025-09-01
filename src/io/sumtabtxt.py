@@ -342,9 +342,9 @@ def save_vrile_matches_to_txt(vresults_list, filename, id_vriles_kw,
         _txt_file_footer(txtfile)
 
 
-def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
-                which=[True]*4, vresults_labels=None, additional_metadata={},
-                verbose=True):
+def save_tables(vresults_list, id_vriles_kw, filenames=None,
+                filename_matches=None, save_dir=None, which=[True]*4,
+                vresults_labels=None, additional_metadata={}, verbose=True):
     """Wrapper function taking a list of VRILE 'results dictionaries' and
     writing summary tables to text files.
 
@@ -355,10 +355,6 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
         List of VRILE 'results dictionaries' as returned by function identify()
         in module src.diagnostics.vriles.
 
-    filenames : length nV list of str or pathlib.Path
-        The file names to save into directory save_directory. Overwrites files
-        if they already exist.
-
     id_vriles_kw : dict
         The keyword arguments passed to function identify() in module
         src.diagnostics.vriles, assumed to contain all the options used to
@@ -367,6 +363,18 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
 
     Optional parameters
     -------------------
+    filenames : length nV list of str, or None
+        The file names to save into directory save_dir. Overwrites files if
+        they already exist. If None, uses parameter 'vresults_labels' (see
+        below; this defaults to the configuration region short names).
+
+    filename_matches : str or None
+        The file name to save into directory save_dir for the matches between
+        regions, if which[2] or which[3] (see below). If None (default), a
+        default name is given: 'pan-Arctic_to_regional_matches.txt', as this
+        part is currently hard-coded to find matches between region 0
+        (pan Arctic) and the remaining regions only.
+
     save_dir : str or pathlib.Path, or None
         The directory to save all files to (note: sub-directories are created
         automatically for summary tables sorted by rank and by date). If
@@ -382,7 +390,7 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
 
     vresults_labels : length nV list of str, or None
         The labels for each VRILE results dictionary. If None (default), uses
-        the default region names set in configuration.
+        the default region (short) names set in configuration.
 
     additional_metadata : dict {key: str}
         Any other metadata key-pairs to write in the header for the record.
@@ -398,6 +406,18 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
     if save_dir is None:
         save_dir = cfg.data_path["tables"]
 
+    if filenames is None:
+        filenames = vresults_labels
+
+    # Set file name for the matches. Currently hard-coded just for region 0
+    # (pan Arctic) matching to remaining regions, so default reflects that:
+    if which[2] or which[3]:
+        if filename_matches is None:
+            filename_matches = "pan-Arctic_to_regional_matches.txt"
+
+        if not filename_matches.endswith(".txt"):
+            filename_matches += ".txt"
+
     # Make directories:
     Path(save_dir, "sorted_by_date").mkdir(parents=True, exist_ok=True)
     Path(save_dir, "sorted_by_rank").mkdir(parents=True, exist_ok=True)
@@ -408,7 +428,11 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
     if which[0]:
         # Save individual VRILE results tables ranked by date:
         for k in range(len(vresults_list)):
-            fk = Path(save_dir, "sorted_by_date", f"{vresults_labels[k]}.txt")
+
+            # Full file path:
+            fk = Path(save_dir, "sorted_by_date", f"{filenames[k]}"
+                      + ("" if filenames[k].endswith(".txt") else ".txt"))
+
             save_vrile_table(vresults_list[k], fk, sort_by_rank=False, **kw)
             if verbose:
                 print(f"Saved: {str(fk)}")
@@ -416,7 +440,11 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
     if which[1]:
         # Save individual VRILE results tables ranked by value:
         for k in range(len(vresults_list)):
-            fk = Path(save_dir, "sorted_by_rank", f"{vresults_labels[k]}.txt")
+
+            # Full file path:
+            fk = Path(save_dir, "sorted_by_rank", f"{filenames[k]}"
+                      + ("" if filenames[k].endswith(".txt") else ".txt"))
+
             save_vrile_table(vresults_list[k], fk, sort_by_rank=True, **kw)
 
             if verbose:
@@ -424,7 +452,7 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
 
     if which[2]:
         # Save pan-Arctic to regional VRILE matches ranked by date:
-        fk = Path(save_dir, "sorted_by_date", "pan-Arctic_to_regional_matches.txt")
+        fk = Path(save_dir, "sorted_by_date", filename_matches)
         save_vrile_matches_to_txt(vresults_list, fk, sort_by_rank=False,
                                   region_labels=vresults_labels, **kw)
         if verbose:
@@ -432,7 +460,7 @@ def save_tables(vresults_list, filenames, id_vriles_kw, save_dir=None,
 
     if which[3]:
         # Save pan-Arctic to regional VRILE matches ranked by value:
-        fk = Path(save_dir, "sorted_by_rank", "pan-Arctic_to_regional_matches.txt")
+        fk = Path(save_dir, "sorted_by_rank", filename_matches)
         save_vrile_matches_to_txt(vresults_list, fk, sort_by_rank=True,
                                   region_labels=vresults_labels, **kw)
         if verbose:
