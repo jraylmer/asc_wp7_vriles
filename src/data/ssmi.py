@@ -15,22 +15,62 @@ from . import nc_tools as nct
 _dataset_id = {"nt": "NSIDC-0051_nasateam_v2", "bt": "NSIDC-0079_bootstrap_v4"}
 
 
-def _get_data_path(diagnostic="sie_regional", frequency="daily",
-                   which_dataset="nt"):
+def _get_data_path(diagnostic, frequency, which_dataset, which_grid):
     """Get full path to directory containing netCDF files.
+
+
+    Parameters
+    ----------
+    diagnostic : str
+        Which diagnostic to load, which should match subdirectory name.
+
+    frequency : str
+        Either 'daily' or 'monthly'.
+
+    which_dataset : str
+        Either 'nt' (NASA Team) or 'bt' (Bootstrap).
+
+    which_grid : str
+        Either 'cice' or 'raw'.
+
+
+    Returns
+    -------
+    pathlib.Path instance corresponding to the required directory.
+
     """
-    return Path(cfg.data_path[f"ssmi_{which_dataset}"], diagnostic, frequency)
+    return Path(cfg.data_path[f"ssmi_{which_dataset}_{which_grid}"],
+                diagnostic, frequency)
 
 
-def _get_file_fmt(diagnostic, frequency="daily", which_dataset="nt"):
-    """Get the file name of the netCDF files without the year.
+def _get_file_fmt(diagnostic, frequency, which_dataset):
+    """Get the file name of the netCDF files without the year (replaced with an
+    empty format string).
+
+
+    Parameters
+    ----------
+    diagnostic : str
+        Which diagnostic is being loaded.
+
+    frequency : str
+        Either 'daily' or 'monthly'.
+
+    which_dataset : str
+        Either 'nt' (NASA Team) or 'bt' (Bootstrap).
+
+
+    Returns
+    -------
+    file_fmt : str
+        The file name with one {} placeholder (to be replaced with year).
+
     """
 
     # Each diagnostic has a file formatted with the year
     # (same for each diagnostic, so append at the end):
-    file_fmts = {"siconc"      : f"{_dataset_id[which_dataset]}_{frequency}",
-                 "sie"         : f"sie_{frequency}",
-                 "sie_regional": f"sie_regional_{frequency}"}
+    file_fmts = {"aice"          : f"{_dataset_id[which_dataset]}_aice_cice_grid",
+                 "sea_ice_extent": f"sie_{frequency[0]}"}
 
     if diagnostic not in file_fmts.keys():
         raise KeyError("src.data.ssmi: netCDF file format not defined for "
@@ -39,16 +79,31 @@ def _get_file_fmt(diagnostic, frequency="daily", which_dataset="nt"):
     return file_fmts[diagnostic] + "_{}.nc"
 
 
-def _get_nc_var_names(diagnostic, frequency="daily", regions=None):
-    """Get the list of netCDF variable names -- regional versions, if applicable.
+def _get_nc_var_names(diagnostic, frequency, regions):
+    """Get the list of netCDF variable names to load from a SSM/I data file.
+
+
+    Parameters
+    ----------
+    diagnostic : str
+        Which diagnostic is being loaded.
+
+    frequency : str
+        Either 'daily' or 'monthly'.
+
+    regions : list of str
+        The region labels to load if applicable.
+
+
+    Returns
+    -------
+    List of str
+        The netCDF variable names to load.
+
     """
 
-    if regions is None:
-        regions = cfg.reg_nc_names
-
-    nc_var_names = {"siconc"      : ["siconc"],
-                    "sie"         : ["sie"],
-                    "sie_regional": [f"sie_{x}" for x in regions]}
+    nc_var_names = {"aice"          : ["aice"],
+                    "sea_ice_extent": [f"sie_{frequency[0]}_{x}" for x in regions]}
 
     if diagnostic not in nc_var_names.keys():
         raise KeyError("src.data.ssmi: netCDF variable name not defined for "
@@ -58,11 +113,11 @@ def _get_nc_var_names(diagnostic, frequency="daily", regions=None):
 
 
 def _get_nc_coord_var_names(diagnostic):
-    """Get list of netCDF coordinate variable names (spatial coordinates,
-    usually empty unless diagnostic == 'siconc').
+    """Get the list of netCDF coordinate variable names (spatial coordinates;
+    this list is empty unless diagnostic == 'aice').
     """
 
-    nc_coord_names = {"siconc": ["TLON", "TLAT"]}
+    nc_coord_names = {"aice": ["TLON", "TLAT"]}
 
     if diagnostic not in nc_coord_names.keys():
         return []
@@ -71,7 +126,7 @@ def _get_nc_coord_var_names(diagnostic):
 
 
 def load_data(diagnostic, frequency="daily", which_dataset="nt",
-              remove_leap=True, regions=None,
+              which_grid="cice", remove_leap=True, regions=None,
               dt_range=(dt(1979,1,1,12,0), dt(2023,12,31,12,0))):
     """Load SSM/I data.
 
@@ -91,13 +146,19 @@ def load_data(diagnostic, frequency="daily", which_dataset="nt",
         Either 'nt' or 'bt' for the NASA Team and Bootstrap datasets,
         respectively.
 
+    which_grid : str, default = 'cice'
+        Either 'cice' or 'raw', for data interpolated onto the CICE grid or the
+        raw (25 km NSIDC) grid, respectively, though note that the latter
+        currently does not work as the raw data is not in an especially easy-to-
+        use format and must be handled explicitly in a script.
+
     remove_leap : bool, default = True
         Whether to remove all instances of February 29 from data, if
         frequency == 'daily'. This reduces the size of the returned arrays
         (as opposed to setting such values to NaN).
 
     regions : list of str or None (default)
-        Regions to load if applicable (e.g., sea ice extent). If None,
+        Regions to load if applicable (e.g., for sea ice extent). If None,
         gets from config.
 
     dt_range : length-2 tuple of datetime.datetime
@@ -121,7 +182,7 @@ def load_data(diagnostic, frequency="daily", which_dataset="nt",
     if regions is None:
         regions = cfg.reg_nc_names
 
-    data_path = _get_data_path(diagnostic, frequency, which_dataset)
+    data_path = _get_data_path(diagnostic, frequency, which_dataset, which_grid)
     file_fmt = _get_file_fmt(diagnostic, frequency, which_dataset)
 
     # Data is saved yearly:
@@ -162,7 +223,7 @@ def load_data(diagnostic, frequency="daily", which_dataset="nt",
     return date, data_coord_vars, data
 
 
-def fill_missing_data(date, data):
+def fill_missing_data(data):
     """Linear interpolation of missing data, only for the earlier years that
     are every two days, hence converting to daily time series. Note: does not
     touch the large gap between December 1987 and January 1988; only

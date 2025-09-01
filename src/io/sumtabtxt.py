@@ -467,11 +467,11 @@ def save_tables(vresults_list, id_vriles_kw, filenames=None,
             print(f"Saved: {str(fk)}")
 
 
-def save_vrile_set_intersection(v1, v2, filename, id_vriles_kw, detrend_type,
-                                n_ma, v1_label="cice", v2_label="obs",
+def save_vrile_set_intersection(v1, v2, filename, id_vriles_kw,
+                                v1_label="cice", v2_label="obs",
                                 v1_title=None, v2_title=None,
                                 region_name="Arctic", additional_metadata={},
-                                sort_by_rank=False):
+                                sort_by_rank=False, verbose=True):
     """Save a sub-set of VRILEs from a VRILE 'results dictionary' v1 that
     overlap in timespane with one or more VRILEs in a second 'results
     directionary' v2. Also updates the metadata of v1 and v2 with the indices
@@ -493,13 +493,6 @@ def save_vrile_set_intersection(v1, v2, filename, id_vriles_kw, detrend_type,
     id_vriles_kw : dict
         The keyword arguments passed to the function
         src.diagnostics.vriles.identify().
-
-    detrend_type : str
-        String used to identify the detrending method used on the sea ice
-        extend data prior to identifying VRILEs.
-
-    n_ma : int
-        Size in days of the moving average filter used in detrending.
 
 
     Optional Parameters
@@ -523,6 +516,10 @@ def save_vrile_set_intersection(v1, v2, filename, id_vriles_kw, detrend_type,
     sort_by_rank : bool, default = False
         If True, the VRILEs in the table are sorted in the order of the rank
         of the joined v1 VRILEs. Otherwise (default), they are in date order.
+
+    verbose : bool, default = True
+        Print progress and saved filenames (on success) to console.
+
 
     Returns
     -------
@@ -590,14 +587,14 @@ def save_vrile_set_intersection(v1, v2, filename, id_vriles_kw, detrend_type,
                f"{v1_title} START", f"{v1_title} END",
                f"{v2_title} START", f"{v2_title} END"]
 
-    rows = [[fmt_int(v1["vriles_joined_rates_rank"][matches[j,0]]),
-             fmt_int(v2["vriles_joined_rates_rank"][matches[j,1]]),
-             fmt_float(1.E3*v1["vriles_joined_rates"][matches[j,0]]),
-             fmt_float(1.E3*v2["vriles_joined_rates"][matches[j,1]]),
-             fmt_date(v1["date_bnds_vriles_joined"][matches[j,0],0]),
-             fmt_date(v1["date_bnds_vriles_joined"][matches[j,0],1]),
-             fmt_date(v2["date_bnds_vriles_joined"][matches[j,1],0]),
-             fmt_date(v2["date_bnds_vriles_joined"][matches[j,1],1])]
+    rows = [[_fmt_int(v1["vriles_joined_rates_rank"][matches[j,0]]),
+             _fmt_int(v2["vriles_joined_rates_rank"][matches[j,1]]),
+             _fmt_float(1.E3*v1["vriles_joined_rates"][matches[j,0]]),
+             _fmt_float(1.E3*v2["vriles_joined_rates"][matches[j,1]]),
+             _fmt_date(v1["date_bnds_vriles_joined"][matches[j,0],0]),
+             _fmt_date(v1["date_bnds_vriles_joined"][matches[j,0],1]),
+             _fmt_date(v2["date_bnds_vriles_joined"][matches[j,1],0]),
+             _fmt_date(v2["date_bnds_vriles_joined"][matches[j,1],1])]
             for j in row_indices]
 
     table = tabulate(rows, headers=headers, floatfmt=("", "", "", ""))
@@ -606,8 +603,12 @@ def save_vrile_set_intersection(v1, v2, filename, id_vriles_kw, detrend_type,
 
     with open(filename, "w") as txtfile:
 
-        _txt_file_header(txtfile, id_vriles_kw, detrend_type=detrend_type,
-                         n_ma=n_ma, title=title, header_length=len(title),
+        # Assume that v1 and v2 have the same 'detrend_type'
+        # and 'moving_average_filter_n_days':
+        _txt_file_header(txtfile, id_vriles_kw,
+                         detrend_type=v1["detrend_type"],
+                         n_ma=v1["moving_average_filter_n_days"],
+                         title=title, header_length=len(title),
                          additional_metadata=additional_metadata)
 
         txtfile.write("\n\n")
@@ -621,13 +622,16 @@ def save_vrile_set_intersection(v1, v2, filename, id_vriles_kw, detrend_type,
 
         if sort_by_rank:
             txtfile.write("\nSorted in descending order of average rate\n"
-                          + "of dSIE (magnitude) for {v1_title} VRILEs.\n")
+                          + f"of dSIE (magnitude) for {v1_title} VRILEs.\n")
         else:
             txtfile.write("\nRanks are based on the average rate of dSIE.\n")
 
         txtfile.write(f"\n\n{_generated_txt()}\n\n\n{table}\n")
         
         _txt_file_footer(txtfile)
+
+    if verbose:
+        print(f"Saved: {str(filename)}")
 
     return v1, v2
 

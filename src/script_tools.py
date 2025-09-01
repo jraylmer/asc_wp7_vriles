@@ -41,10 +41,10 @@ def argument_parser(**kw):
     return prsr
 
 
-def add_vrile_cmd_args(prsr, obs=False):
+def add_vrile_cmd_args(prsr, ssmi=False):
     """Add command line arguments/options for VRILE identification to an
     argparse.ArgumentParser() instance. Optional parameter 'obs', bool,
-    determines whether to add observations-specific options (i.e., if
+    determines whether to add SSM/I-specific options (i.e., if
     script is being called to run VRILE identification on SSM/I data).
     """
 
@@ -73,11 +73,11 @@ def add_vrile_cmd_args(prsr, obs=False):
 
     prsr.add_argument("--join-vriles-max-gap", type=int, default=1)
 
-    if obs:
-        prsr.add_argument("--obs", type=str, default="nt",
-                          choices=["nt", "bt", "amsr"])
-        prsr.add_argument("--obs-filter-n-days", type=int, default=5,
-            help="Low pass filter applied to OBS only")
+    if ssmi:
+        prsr.add_argument("--ssmi-dataset", type=str, default="nt",
+                          choices=["nt", "bt"])
+        prsr.add_argument("--ssmi-filter-n-days", type=int, default=5,
+            help="Low pass filter applied to SSMI only")
 
 
 def add_vrile_classification_cmd_args(prsr):
@@ -120,7 +120,7 @@ def add_track_vrile_matching_cmd_args(prsr):
     """
     prsr.add_argument("--match-n-day-lag", type=int, nargs=2, default=(0, 0))
     prsr.add_argument("--match-unjoined-vriles", action="store_true")
-    prsr.add_argument("--match-obs", action="store_true")
+    prsr.add_argument("--match-ssmi", action="store_true")
 
 
 def get_id_vriles_options(cmd, header=True, footer=True):
@@ -171,16 +171,16 @@ def get_id_vriles_options(cmd, header=True, footer=True):
     if header:
         _print_header("VRILE ID options")
 
-    if "obs" in [x[0] for x in cmd._get_kwargs()]:
-        _print_option("Observations", cmd.obs)
+    if "ssmi_dataset" in [x[0] for x in cmd._get_kwargs()]:
+        _print_option("SSM/I dataset", cmd.ssmi_dataset)
 
     _print_option("Time range",       f"{dt_min.strftime('%d %b %Y')}"
                                 + f" to {dt_max.strftime('%d %b %Y')}")
 
     _print_option("Mov. avg. filter width", f"{cmd.n_moving_average} days")
 
-    if "obs" in [x[0] for x in cmd._get_kwargs()]:
-        _print_option("Obs. additional filter", f"{cmd.obs_filter_n_days} days")
+    if "ssmi_dataset" in [x[0] for x in cmd._get_kwargs()]:
+        _print_option("SSM/I additional filter", f"{cmd.ssmi_filter_n_days} days")
 
     _print_option("Timescale", f"{cmd.n_days} day changes")
     _print_option("Metric", cmd.metric)
@@ -274,7 +274,7 @@ def get_track_vrile_matching_options(cmd, header=True, footer=True):
     if header:
         _print_header("Track/VRILE matching options")
 
-    _print_option("Matching", ("Obs." if cmd.match_obs else "CICE") + " VRILEs")
+    _print_option("Matching", ("SSM/I" if cmd.match_ssmi else "CICE") + " VRILEs")
 
     _print_option("Track allowed lead time", f"{cmd.match_n_day_lag[0]} day"
                   + ("s" if cmd.match_n_day_lag[0] != 1 else ""))

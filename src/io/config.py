@@ -122,11 +122,16 @@ def set_config(*cfg_files):
     globals()["reg_labels_short"]    = [_all_reg_info[x]["short_name"] for x in globals()["reg_nc_names"]]
     globals()["reg_sector_lon_bnds"] = [_all_reg_info[x]["sector_lon_bnds"] for x in globals()["reg_nc_names"]]
 
-    # Observations paths:
+    # AMSR-E/AMSR2 paths:
     globals()["data_path"]["amsr_raw"]       = Path(cfg_loc.get("AMSR DATA", "dir_raw")).resolve()
-    globals()["data_path"]["amsr_cice_grid"] = Path(cfg_loc.get("AMSR DATA", "dir_cice_grid")).resolve()
-    globals()["data_path"]["ssmi_bt"]        = Path(cfg_loc.get("SSMI DATA", "dir_nt")).resolve()
-    globals()["data_path"]["ssmi_nt"]        = Path(cfg_loc.get("SSMI DATA", "dir_bt")).resolve()
+    globals()["data_path"]["amsr_cice"]      = Path(cfg_loc.get("AMSR DATA", "dir_cice_grid")).resolve()
+
+    # SSM/I paths:
+    globals()["data_path"]["ssmi_raw_lonlat"] = Path(cfg_loc.get("SSMI DATA", "file_raw_lonlat")).resolve()
+    globals()["data_path"]["ssmi_bt_raw"]     = Path(cfg_loc.get("SSMI DATA", "dir_raw_bt")).resolve()
+    globals()["data_path"]["ssmi_nt_raw"]     = Path(cfg_loc.get("SSMI DATA", "dir_raw_nt")).resolve()
+    globals()["data_path"]["ssmi_bt_cice"]    = Path(cfg_loc.get("SSMI DATA", "dir_cice_bt")).resolve()
+    globals()["data_path"]["ssmi_nt_cice"]    = Path(cfg_loc.get("SSMI DATA", "dir_cice_nt")).resolve()
 
     # Track data path:
     globals()["data_path"]["tracks"] = Path(cfg_loc.get("TRACK DATA", "dir")).resolve()

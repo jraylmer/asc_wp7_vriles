@@ -17,7 +17,7 @@ def _get_data_path(diagnostic="sie_cice_grid_pole_filled", frequency="daily"):
     links if not in same directory).
     """
     if "cice_grid" in diagnostic:
-        return Path(cfg.data_path["amsr_cice_grid"], diagnostic, frequency)
+        return Path(cfg.data_path["amsr_cice"], diagnostic, frequency)
     else:
         return Path(cfg.data_path["amsr_raw"], diagnostic, frequency)
 

@@ -20,7 +20,7 @@ from src.diagnostics import vriles, vrile_diagnostics
 def main():
 
     prsr = script_tools.argument_parser(usage="Calculate VRILEs in CICE")
-    script_tools.add_vrile_cmd_args(prsr, obs=False)
+    script_tools.add_vrile_cmd_args(prsr, ssmi=False)
     script_tools.add_vrile_classification_cmd_args(prsr)
     cmd = prsr.parse_args()
 
