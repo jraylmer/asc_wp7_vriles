@@ -14,7 +14,7 @@ def main():
     prsr = script_tools.argument_parser(
         usage="Find occurences of tracks matching VRILEs")
 
-    script_tools.add_vrile_cmd_args(prsr, obs=True)
+    script_tools.add_vrile_cmd_args(prsr, ssmi=True)
     script_tools.add_track_filter_cmd_args(prsr)
     script_tools.add_track_vrile_matching_cmd_args(prsr)
 
@@ -34,7 +34,13 @@ def main():
     yrng = f"{cmd.year_range[0]:04}-{cmd.year_range[1]:04}"
 
     # Load cached VRILE and filtered track data (run relevant scripts first):
-    vriles = cache.load(f"vriles_{cmd.obs if cmd.match_obs else 'cice'}_{yrng}.pkl")
+    if cmd.match_ssmi:
+        vriles_fname = f"vriles_ssmi-{cmd.ssmi_dataset}_{yrng}.pkl"
+    else:
+        vriles_fname = f"vriles_cice_{yrng}.pkl"
+
+    vriles = cache.load(vriles_fname)
+
     track_data = cache.load(f"tracks_filtered_{yrng}.pkl")
 
     # Extract required track data (datetimes and sector for each coordinate)
@@ -50,8 +56,9 @@ def main():
         track_max_lead_days=cmd.match_n_day_lag[0],
         track_max_lag_days=cmd.match_n_day_lag[1])
 
-    cache_match_name = f"matches_vriles_{cmd.obs if cmd.match_obs else 'cice'}"
-    cache_match_name += f"_tracks_filtered_{yrng}.pkl"
+    cache_match_name = (f"tracks_matches_to_vriles_"
+                        + (("ssmi-" + cmd.ssmi_dataset) if cmd.match_ssmi else "cice")
+                        + f"_{yrng}.pkl")
 
     cache.save([v_tr_indices, tr_v_indices], cache_match_name)
 

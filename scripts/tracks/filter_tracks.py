@@ -62,7 +62,8 @@ def main():
         txt_save += f"{vor_thr:.6E} s-1"
 
         print(txt_save)
-        cache.write_txt(txt_save, "vorticity_threshold.txt")
+        cache.write_txt(txt_save, "vorticity_threshold.txt",
+                        directory=cfg.data_path["tables"])
         # Don't save tracks if getting threshold
 
     else:
