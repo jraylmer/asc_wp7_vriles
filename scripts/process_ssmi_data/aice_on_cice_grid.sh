@@ -19,9 +19,9 @@ while getopts c:s:e:d: flag
 do
     case "${flag}" in
         c) CFG=${OPTARG};;
-	s) YRS=${OPTARG};;
-	e) YRE=${OPTARG};;
-	d) DATASET=${OPTARG};;
+        s) YRS=${OPTARG};;
+        e) YRE=${OPTARG};;
+        d) DATASET=${OPTARG};;
     esac
 done
 
