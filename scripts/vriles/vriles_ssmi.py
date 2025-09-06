@@ -96,16 +96,19 @@ def main():
     # First load CICE VRILEs from cache:
     vriles_cice = cache.load(f"vriles_cice_{dt_min.year}-{dt_max.year}.pkl")
 
-    for k in range(len(sie)):
+    # Save text files to this directory:
+    dir_matches = Path(cfg.data_path["tables"],
+        f"vrile_matches_cice_to_ssmi-{cmd.ssmi_dataset}_{dt_min.year}-{dt_max.year}")
 
-        rname = cfg.reg_labels_short[k]
+    dir_matches.mkdir(exist_ok=True, parents=True)
+
+    for k in range(len(sie)):
 
         # Function below updates metadata of vrile results dictionaries
         # with indices of joined VRILEs matching one in the other set, and
         # saves a text table summarising this information.
         #
-        # Save text files to this directory:
-        filename_k = Path(cfg.data_path["tables"], f"vriles_cice_obs_{rname}.txt")
+        filename_k = Path(dir_matches, f"{cfg.reg_labels_short[k]}.txt")
 
         vriles_cice[k], vriles_ssmi[k] = sumtabtxt.save_vrile_set_intersection(
             vriles_cice[k], vriles_ssmi[k], filename_k, id_vriles_kw,
