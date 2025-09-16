@@ -250,7 +250,7 @@ def match_tracks_to_vriles(vrile_date_bnds, track_dts, track_sec,
 
     Returns
     -------
-    v_tr_indices : length n_regions list of array (nv,n_tr_match) of int
+    v_tr_indices : len n_regions list of len nv list of array (n_tr_match,) of int
         Indices of the array of all tracks for which a given VRILE in a given
         region matches to. Specifically,
 
@@ -259,7 +259,8 @@ def match_tracks_to_vriles(vrile_date_bnds, track_dts, track_sec,
         gives the track array indices [k1, k2, ...] which match up to VRILE v
         in region r. Note that the track IDs are NOT unique across all years,
         so it does make sense here to save the indices of the track data itself
-        rather than the track IDs.
+        rather than the track IDs. In the above, n_tr_match is different per
+        r and v, in general.
 
     tr_v_indices : length n_track list of list of length-2 list of int
         Region and VRILE indices associated with each track. Specifically,
@@ -275,7 +276,7 @@ def match_tracks_to_vriles(vrile_date_bnds, track_dts, track_sec,
     n_vriles_by_region = [len(x) for x in vrile_date_bnds]
     n_tracks_anywhere  = len(track_dts)
 
-    # Save list of arrays for the matching track-list indices, so that
+    # Save list of list of arrays for the matching track-list indices, so that
     #
     #        v_tr_indices[r][v] = array([k1, k2, ... ])
     #
