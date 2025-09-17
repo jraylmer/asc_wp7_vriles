@@ -82,9 +82,10 @@ def main():
 
     # Save the summary tables (save the actual data at the end, as below
     # we first add a key for the matches to corresponding CICE VRILEs):
-    additional_metadata = {"Time range" : f"{dt_min.strftime('%d %b %Y')} to "
-                                          + f"{dt_max.strftime('%d %b %Y')}",
-                           "Description": cfg.title}
+    additional_metadata = {"SSM/I dataset": f"{ssmi_title} ({cmd.ssmi_dataset})",
+                           "Time range"   : f"{dt_min.strftime('%d %b %Y')} to "
+                                            + f"{dt_max.strftime('%d %b %Y')}",
+                           "Description"  : cfg.title}
 
     sumtabtxt.save_tables(vriles_ssmi, id_vriles_kw,
         which=[True]*4, vresults_labels=cfg.reg_labels_short,
@@ -113,7 +114,7 @@ def main():
         vriles_cice[k], vriles_ssmi[k] = sumtabtxt.save_vrile_set_intersection(
             vriles_cice[k], vriles_ssmi[k], filename_k, id_vriles_kw,
             v1_label="cice", v2_label=f"ssmi-{cmd.ssmi_dataset}",
-            v1_title="CICE", v2_title=f"SSM/I {ssmi_title}",
+            v1_title="CICE", v2_title=f"SSM/I",
             region_name=cfg.reg_labels_long[k],
             additional_metadata=additional_metadata, sort_by_rank=True)
 

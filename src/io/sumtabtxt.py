@@ -34,7 +34,7 @@ def _criteria_order_txt(x):
 
 
 def _txt_file_header(txtfile, id_vriles_kw, detrend_type="seasonal_periodic",
-                     n_ma=5, title="VRILEs", header_length=52,
+                     n_ma=5, title="VRILEs", header_length=80,
                      additional_metadata={}):
     """Add common header information for table text files. Uses the keyword
     arguments passed to the function src.diagnostics.vriles.identify() to
@@ -62,7 +62,7 @@ def _txt_file_header(txtfile, id_vriles_kw, detrend_type="seasonal_periodic",
     title : str, default = 'VRILEs'
         Title of the dataset (appears at the very top of the file).
 
-    header_length : int, default = 52
+    header_length : int, default = 80
         Character width of the output file.
 
     additional_metadata : dict {key: str}, default = {}
@@ -79,7 +79,7 @@ def _txt_file_header(txtfile, id_vriles_kw, detrend_type="seasonal_periodic",
 
     txtfile.write("Identification criteria:\n")
 
-    txtfile.write("    N_days         = ")
+    txtfile.write("    n days         = ")
     txtfile.write(f"{id_vriles_kw['nt_delta']}" + "\n")
 
     txtfile.write("    threshold      = ")
@@ -111,8 +111,10 @@ def _txt_file_header(txtfile, id_vriles_kw, detrend_type="seasonal_periodic",
 
     if additional_metadata:
         txtfile.write("\nAdditional metadata:\n")
-        for amk in additional_metadata.keys():
-            txtfile.write(f"    {amk}: {additional_metadata[amk]}" + "\n")
+        am_keys = list(additional_metadata.keys())
+        maxlen = max([len(k) for k in am_keys])
+        for k in am_keys:
+            txtfile.write(f"    {k:<{maxlen}}: {additional_metadata[k]}\n")
 
 
 def _txt_file_footer(txtfile):
@@ -133,6 +135,78 @@ def _fmt_int(x):
 def _fmt_float(x):
     """Common formatter for VRILE float data (input: float)."""
     return f"{x:.2f}"
+
+
+def _fmt_list(x):
+    """Common formatter for VRILE list/iterable data (input: iterable)."""
+    return " ".join([str(j) for j in x])
+
+
+def _fmt_none(x):
+    """Common formatter for arbitrary data type (input: anything)."""
+    return f"{repr(x)}"
+
+
+# Dicitonary of dictionaries of vrile results key properties for table outputs
+# =========================================================================== #
+# Each (well, most) column in the table outputs get data from something in the
+# VRILE results dictionar(ies) passed to the functions generating them. Define
+# various table properties ('props') for the VRILE results keys ('vrk') to be
+# accessed as required in the table generating functions:
+#
+#     header  : table column header (defaults to key itself)
+#     fmt_func: function to format values into a string for the table
+#               (defaults to _fmt_none)
+#     fmt_tab : formatter used by tabulate function (defaults to '')
+#     scale   : factor by which to multiply data before formatting
+#               (if not present, do not scale)
+#
+# Defaults set below if not defined here. Multiple headers can be defined in a
+# list for multi-dimensional vresults data (e.g., datetime bounds which are 2D
+# arrays: first header 'START' corresponds to index 0 and second header 'END'
+# to index 1 for the second axis of that data).
+#
+_vrk_props = {
+    "vriles_joined_rates_rank": {"header"  : "RANK",
+                                 "fmt_func": _fmt_int,
+                                  "fmt_tab" : "03d"
+                                },
+    "date_bnds_vriles_joined" : {"header"  : ["START", "END"],
+                                 "fmt_func": _fmt_date
+                                },
+    "vriles_joined_n_days"    : {"header"  : "N DAYS",
+                                 "fmt_func": _fmt_int,
+                                 "fmt_tab" : "03d"
+                                },
+    "vriles_joined"           : {"header"  : u"\u0394" + u"SIE\n(10\u2076km\u00b2)",
+                                 "fmt_func": _fmt_float,
+                                 "fmt_tab" : ".2f"
+                                },
+    "vriles_joined_rates"     : {"header"  : u"dSIE/dt\n(10\u00b3km\u00b2/day)",
+                                 "fmt_func": _fmt_float,
+                                 "fmt_tab" : ".2f",
+                                 "scale"   : 1.e3
+                                },
+    "vriles_joined_class"     : {"header"  : "CLASS",
+                                 "fmt_func": _fmt_float,
+                                 "fmt_tab" : ".2f"},
+    "track_ids"               : {"header"  : "TRACK IDS\nASSOCIATED WITH VRILE",
+                                 "fmt_func": _fmt_list}
+}
+
+# Add default values (except 'scale') and entry for number of headings:
+for k in _vrk_props.keys():
+    for subkey, default_value in zip(["header", "fmt_func", "fmt_tab"],
+                                     [k       , _fmt_none , ""       ]):
+        if subkey not in _vrk_props[k].keys():
+            _vrk_props[k][subkey] = default_value
+
+    if type(_vrk_props[k]["header"]) in [list]:
+        _vrk_props[k]["n_headers"] = len(_vrk_props[k]["header"])
+    else:
+        _vrk_props[k]["n_headers"] = 1
+
+# --------------------------------------------------------------------------- #
 
 
 def save_vrile_table(vresults, filename, id_vriles_kw, additional_metadata={},
@@ -167,39 +241,69 @@ def save_vrile_table(vresults, filename, id_vriles_kw, additional_metadata={},
         usually this should mean data order).
     """
 
+    # Specify the required keys of vresults and their order (columns), and the
+    # order of VRILE indices (rows). Note that required keys may not be in
+    # vresults (check and if so discard them, afterwards):
     if sort_by_rank:
 
-        headers = ["RANK", "START", "END", "N_DAYS", "DELTA_SIE\n(10^6 km^2)",
-                   "DELTA_SIE/N_DAYS\n(10^3 km^2/day)"]
+        vrk_want = ["vriles_joined_rates_rank", "date_bnds_vriles_joined",
+                    "vriles_joined_n_days", "vriles_joined_class",
+                    "vriles_joined", "vriles_joined_rates", "track_ids"]
 
-        sort = np.argsort(vresults["vriles_joined_rates_rank"])
-
-        rows = [[_fmt_int(vresults["vriles_joined_rates_rank"][j]),
-                 _fmt_date(vresults["date_bnds_vriles_joined"][j,0]),
-                 _fmt_date(vresults["date_bnds_vriles_joined"][j,1]),
-                 _fmt_int(vresults["vriles_joined_n_days"][j]),
-                 _fmt_float(vresults["vriles_joined"][j]),
-                 _fmt_float(1.E3*vresults["vriles_joined_rates"][j])]
-                for j in sort]
-
-        table = tabulate(rows, headers=headers,
-                         floatfmt=("03d", "", "", "03d", ".2f", ".1f"))
+        j_vriles = np.argsort(vresults["vriles_joined_rates_rank"])
 
     else:
 
-        headers = ["START", "END", "N_DAYS", "RANK", "DELTA_SIE\n(10^6 km^2)",
-                   "DELTA_SIE/N_DAYS\n(10^3 km^2/day)"]
+        vrk_want = ["date_bnds_vriles_joined", "vriles_joined_n_days",
+                    "vriles_joined_rates_rank", "vriles_joined_class",
+                    "vriles_joined", "vriles_joined_rates", "track_ids"]
 
-        rows = [[_fmt_date(vresults["date_bnds_vriles_joined"][j,0]),
-                 _fmt_date(vresults["date_bnds_vriles_joined"][j,1]),
-                 _fmt_int(vresults["vriles_joined_n_days"][j]),
-                 _fmt_int(vresults["vriles_joined_rates_rank"][j]),
-                 _fmt_float(vresults["vriles_joined"][j]),
-                 _fmt_float(1.E3*vresults["vriles_joined_rates"][j])]
-                for j in range(vresults["n_joined_vriles"])]
+        j_vriles = np.argsort(vresults["date_bnds_vriles_joined"][:,0])
 
-        table = tabulate(rows, headers=headers,
-                         floatfmt=("", "", "03d", "03d", ".2f", ".1f"))
+    # Headers and tabulate argument 'floatfmt' for table output:
+    headers  = []
+    floatfmt = []
+    vrk_use  = []  # equal to or subset of vrk_want (discard unavailable keys)
+    for k in vrk_want:
+        if k in vresults.keys():
+            if _vrk_props[k]["n_headers"] > 1:
+                for i in range(_vrk_props[k]["n_headers"]):
+                    headers.append(_vrk_props[k]["header"][i])
+                    floatfmt.append(_vrk_props[k]["fmt_tab"])
+            else:
+                headers.append(_vrk_props[k]["header"])
+                floatfmt.append(_vrk_props[k]["fmt_tab"])
+            vrk_use.append(k)
+
+    # List of rows for table output:
+    rows = []
+
+    # Loop over joined VRILEs in order of indices specified in j_vriles:
+    for j in j_vriles:
+        row_j = []  # set up row for joined VRILE with array index j
+
+        # Loop over required results dictionary keys:
+        for k in vrk_use:
+            if _vrk_props[k]["n_headers"] > 1:
+                # Multiple 'sub'-headings / 2D array for key k
+                for i in range(_vrk_props[k]["n_headers"]):
+                    val = vresults[k][j,i]
+                    if "scale" in _vrk_props[k].keys():
+                        val *= _vrk_props[k]["scale"]
+
+                    row_j.append(_vrk_props[k]["fmt_func"](val))
+
+            else:
+                # No 'sub'-headings / 1D array for key k
+                val = vresults[k][j]
+                if "scale" in _vrk_props[k].keys():
+                    val *= _vrk_props[k]["scale"]
+
+                row_j.append(_vrk_props[k]["fmt_func"](val))
+
+        rows.append(row_j)  # append to main list of rows
+
+    table = tabulate(rows, headers=headers, floatfmt=floatfmt)
 
     with open(filename, "w") as txtfile:
         
@@ -209,17 +313,20 @@ def save_vrile_table(vresults, filename, id_vriles_kw, additional_metadata={},
                          title=vresults["title"],
                          additional_metadata=additional_metadata)
 
-        txtfile.write("\nTable lists non-overlapping, joined events (hence\n"
-                      + "the different N_days), of which there are a total "
-                      + ("%i." % vresults['n_joined_vriles']) + "\n")
+        txtfile.write(f"\nTable lists the {vresults['n_joined_vriles']} non-"
+                      + "overlapping, joined events (hence "
+                      + "the different "
+                      + _vrk_props["vriles_joined_n_days"]["header"]
+                      + ").\n")
 
         if sort_by_rank:
-            txtfile.write("\nSorted in descending order of average rate of "
-                          + "dSIE\n(magnitude; last column).\n")
+            txtfile.write("\nSorted in descending order of average rates, "
+                          + "dSIE/dt (magnitudes).\n")
         else:
-            txtfile.write("\nRanks are based on the average rate of dSIE.\n")
+            txtfile.write("\nRanks are based on the magnitude of the average "
+                          + "rates, dSIE/dt.\n")
 
-        txtfile.write("\n" + _generated_txt() + "\n\n" + table + "\n")
+        txtfile.write("\n" + _generated_txt() + "\n\n\n" + table + "\n")
 
         _txt_file_footer(txtfile)
 
@@ -287,31 +394,76 @@ def save_vrile_matches_to_txt(vresults_list, filename, id_vriles_kw,
 
         matches.append(matches_k)
 
+    # Table will essentially be the standard table for pan Arctic (region index 0)
+    # with an extra column at the end listing the regions it 'matches' to:
     if sort_by_rank:
 
-        headers = ["RANK", "START", "END", "REGIONS"]
+        vrk_want = ["vriles_joined_rates_rank", "vriles_joined_class",
+                    "date_bnds_vriles_joined"]
 
-        sort = np.argsort(vresults_list[0]["vriles_joined_rates_rank"])
-
-        rows = [[_fmt_int(vresults_list[0]["vriles_joined_rates_rank"][j]),
-                 _fmt_date(vresults_list[0]["date_bnds_vriles_joined"][j,0]),
-                 _fmt_date(vresults_list[0]["date_bnds_vriles_joined"][j,1]),
-                 ", ".join(matches[j]) if len(matches[j]) > 0 else "None"]
-                for j in sort]
-
-        table = tabulate(rows, headers=headers, floatfmt=("03d", "", "", ""))
+        j_vriles = np.argsort(vresults_list[0]["vriles_joined_rates_rank"])
 
     else:
 
-        headers = ["START", "END", "RANK", "REGIONS"]
+        vrk_want = ["date_bnds_vriles_joined", "vriles_joined_rates_rank",
+                    "vriles_joined_class"]
 
-        rows = [[_fmt_date(vresults_list[0]["date_bnds_vriles_joined"][j,0]),
-                 _fmt_date(vresults_list[0]["date_bnds_vriles_joined"][j,1]),
-                 _fmt_int(vresults_list[0]["vriles_joined_rates_rank"][j]),
-                 ", ".join(matches[j]) if len(matches[j]) > 0 else "None"]
-                for j in range(vresults_list[0]["n_joined_vriles"])]
+        j_vriles = np.argsort(vresults_list[0]["date_bnds_vriles_joined"][:,0])
 
-        table = tabulate(rows, headers=headers, floatfmt=("", "", "03d", ""))
+    # Headers and tabulate argument 'floatfmt' for table output:
+    headers  = []
+    floatfmt = []
+    vrk_use  = []  # equal to or subset of vrk_want (discard unavailable keys)
+    for k in vrk_want:
+        if k in vresults_list[0].keys():
+            if _vrk_props[k]["n_headers"] > 1:
+                for i in range(_vrk_props[k]["n_headers"]):
+                    headers.append(_vrk_props[k]["header"][i])
+                    floatfmt.append(_vrk_props[k]["fmt_tab"])
+            else:
+                headers.append(_vrk_props[k]["header"])
+                floatfmt.append(_vrk_props[k]["fmt_tab"])
+            vrk_use.append(k)
+
+    # Now append the non-vresults-based headers and floatfmt
+    # (i.e., the region matches information):
+    headers.append("Region match")
+    floatfmt.append("")
+
+    # List of rows for table output:
+    rows = []
+
+    # Loop over joined pan-Arctic VRILEs in order of indices j_vriles:
+    for j in j_vriles:
+        row_j = []  # set up row for joined pan-Arctic VRILE with array index j
+
+        # Loop over required results dictionary keys:
+        for k in vrk_use:
+            if _vrk_props[k]["n_headers"] > 1:
+                # Multiple headings / 2D array for key k
+                for i in range(_vrk_props[k]["n_headers"]):
+                    val = vresults_list[0][k][j,i]
+                    if "scale" in _vrk_props[k].keys():
+                        val *= _vrk_props[k]["scale"]
+
+                    row_j.append(_vrk_props[k]["fmt_func"](val))
+
+            else:
+                # No headings / 1D array for key k
+                val = vresults_list[0][k][j]
+                if "scale" in _vrk_props[k].keys():
+                    val *= _vrk_props[k]["scale"]
+
+                row_j.append(_vrk_props[k]["fmt_func"](val))
+
+        # Now append the non-vresults-based data to row_j
+        # (i.e., the region matches for this pan-Arctic VRILE):
+        row_j.append(", ".join(matches[j]) if len(matches[j]) > 0 else "")
+
+        # Finally, append row to main list of all rows:
+        rows.append(row_j)
+
+    table = tabulate(rows, headers=headers, floatfmt=floatfmt)
 
     with open(filename, "w") as txtfile:
 
@@ -321,23 +473,23 @@ def save_vrile_matches_to_txt(vresults_list, filename, id_vriles_kw,
                          title="Pan-Arctic VRILEs matched to regions",
                          additional_metadata=additional_metadata)
 
-        txtfile.write("\nTable lists non-overlapping, joined events for\n"
-                      + "the pan-Arctic, of which there are a total "
-                      + f"{vresults_list[0]['n_joined_vriles']}.\n")
+        txtfile.write(f"\nTable lists the {vresults_list[0]['n_joined_vriles']}"
+                      + " non-overlapping, joined events for the pan-Arctic.\n")
 
         if sort_by_rank:
-            txtfile.write("\nSorted in descending order of average rate\n"
-                          + "of dSIE (magnitude).\n")
+            txtfile.write("\nSorted in descending order of average rates, "
+                          + "dSIE/dt (magnitudes).\n")
         else:
-            txtfile.write("\nRanks are based on the average rate of dSIE.\n")
+            txtfile.write("\nRanks are based on the magnitude of the average "
+                          + "rates, dSIE/dt.\n")
 
-        txtfile.write("\nPan-Arctic VRILES matched to regions by\nchecking for"
+        txtfile.write("\nPan-Arctic VRILES matched to regions by checking for"
                       + " any overlap of time periods:\n\n")
 
         for r in range(1, len(vresults_list)):
             txtfile.write(f"{r}: {region_labels[r-1]}" + "\n")
 
-        txtfile.write(f"\n\n{_generated_txt()}\n\n\n{table}\n")
+        txtfile.write("\n" + _generated_txt() + "\n\n\n" + table + "\n")
 
         _txt_file_footer(txtfile)
 
@@ -539,6 +691,9 @@ def save_vrile_set_intersection(v1, v2, filename, id_vriles_kw,
     if v2_title is None:
         v2_title = v2_label
 
+    # Create a list of length-2 lists [change to an array of shape (n_matches, 2)
+    # at the end] for the indices of VRILEs which match, where first index of
+    # second axis corresponds to v1 and second index to v2:
     matches = []
 
     for k in range(v1["n_joined_vriles"]):
@@ -575,29 +730,79 @@ def save_vrile_set_intersection(v1, v2, filename, id_vriles_kw,
     v1[f"n_joined_vriles_matched_to_{v2_label}"] = n_matched
     v2[f"n_joined_vriles_matched_to_{v1_label}"] = n_matched
 
-    # Construct table for text file write:
+    # Construct table for text file write. Order of rows depends whether
+    # sorting by rank or by date, but headers are the same in each case.
+    #
+    # For rows, specify indices of matches array to select from. By default,
+    # this is just the order they are identified in (i.e., date order of v1).
+    # Otherwise, sort by ranks of matched VRILEs in v1.
+    #
     row_indices = np.arange(n_matched).astype(int)
     if sort_by_rank and n_matched > 1:
         row_indices = row_indices[
             np.argsort(v1["vriles_joined_rates_rank"][matches[:,0]])]
 
-    headers = [f"{v1_title} RANK", f"{v2_title} RANK",
-               f"{v1_title} DELTA_SIE/N_DAYS\n(10^3 km^2 day^-1)",
-               f"{v2_title} DELTA_SIE/N_DAYS\n(10^3 km^2 day^-1)",
-               f"{v1_title} START", f"{v1_title} END",
-               f"{v2_title} START", f"{v2_title} END"]
+    vrk_want = ["date_bnds_vriles_joined", "vriles_joined_rates_rank",
+                "vriles_joined_class", "vriles_joined_rates"]
 
-    rows = [[_fmt_int(v1["vriles_joined_rates_rank"][matches[j,0]]),
-             _fmt_int(v2["vriles_joined_rates_rank"][matches[j,1]]),
-             _fmt_float(1.E3*v1["vriles_joined_rates"][matches[j,0]]),
-             _fmt_float(1.E3*v2["vriles_joined_rates"][matches[j,1]]),
-             _fmt_date(v1["date_bnds_vriles_joined"][matches[j,0],0]),
-             _fmt_date(v1["date_bnds_vriles_joined"][matches[j,0],1]),
-             _fmt_date(v2["date_bnds_vriles_joined"][matches[j,1],0]),
-             _fmt_date(v2["date_bnds_vriles_joined"][matches[j,1],1])]
-            for j in row_indices]
+    # Headers and tabulate argument 'floatfmt' for table output:
+    headers    = []
+    floatfmt   = []
+    vrk_use_v1 = []  # equal to or subset of vrk_want, possibly different to v2
+    vrk_use_v2 = []  # equal to or subset of vrk_want, possibly different to v1
 
-    table = tabulate(rows, headers=headers, floatfmt=("", "", "", ""))
+    # For of v1 and v2, loop over each required key k, check if it exists in v*,
+    # and if so, append the appropriate header(s) to headers list and k to the
+    # vrk_use_* list:
+    for vrk_use, v_title, v_dict in zip([vrk_use_v1, vrk_use_v2],
+                                        [v1_title  , v2_title  ],
+                                        [v1        , v2        ]):
+        for k in vrk_want:
+            if k in v_dict.keys():
+                if _vrk_props[k]["n_headers"] > 1:
+                    for i in range(_vrk_props[k]["n_headers"]):
+                        headers.append(f"{v_title}\n{_vrk_props[k]['header'][i]}")
+                        floatfmt.append(_vrk_props[k]["fmt_tab"])
+                else:
+                    headers.append(f"{v_title}\n{_vrk_props[k]['header']}")
+                    floatfmt.append(_vrk_props[k]["fmt_tab"])
+
+                vrk_use.append(k)
+
+    rows = []
+
+    # Loop over matched VRILEs in order of indices set above (row_indices):
+    for j in row_indices:
+
+        row_j = []  # set up row for next matched VRILE
+
+        # Indices of actual VRILE data in v1 and v2, respectively:
+        jv1 = matches[j,0]
+        jv2 = matches[j,1]
+
+        # Loop over required results dictionary keys for v1:
+        for vrk_use, v, jv in zip([vrk_use_v1, vrk_use_v2], [v1, v2], [jv1, jv2]):
+            for k in vrk_use:
+                if _vrk_props[k]["n_headers"] > 1:
+                    # Multiple headings / 2D array for key k
+                    for i in range(_vrk_props[k]["n_headers"]):
+                        val = v[k][jv,i]
+                        if "scale" in _vrk_props[k].keys():
+                            val *= _vrk_props[k]["scale"]
+
+                        row_j.append(_vrk_props[k]["fmt_func"](val))
+
+                else:
+                    # One heading / 1D array for key k
+                    val = v[k][jv]
+                    if "scale" in _vrk_props[k].keys():
+                        val *= _vrk_props[k]["scale"]
+
+                    row_j.append(_vrk_props[k]["fmt_func"](val))
+
+        rows.append(row_j)
+
+    table = tabulate(rows, headers=headers, floatfmt=floatfmt)
 
     title = f"{region_name} VRILEs matched between {v1_title} and {v2_title}"
 
@@ -608,26 +813,26 @@ def save_vrile_set_intersection(v1, v2, filename, id_vriles_kw,
         _txt_file_header(txtfile, id_vriles_kw,
                          detrend_type=v1["detrend_type"],
                          n_ma=v1["moving_average_filter_n_days"],
-                         title=title, header_length=len(title),
+                         title=title, header_length=max(80, len(title)),
                          additional_metadata=additional_metadata)
 
         txtfile.write("\n\n")
 
-        txtfile.write("Table lists non-overlapping, joined events for the\n"
-                      + f"{region_name}, date-matched between {v1_title} and "
-                      + f"{v2_title}, of\nwhich there are a total {n_matched}.\n")
-
-        txtfile.write("\nHere, 'date-matched' simply means checking for any\n"
-                      + "overlap of date bounds.\n")
+        txtfile.write(f"Table lists the {n_matched} non-overlapping, joined "
+                      + f"events for the {region_name},\ndate-matched between "
+                      + f"{v1_title} and {v2_title}. Here, 'date-matched' "
+                      + "means any\noverlap of date bounds between each pair "
+                      + "of events.\n")
 
         if sort_by_rank:
-            txtfile.write("\nSorted in descending order of average rate\n"
-                          + f"of dSIE (magnitude) for {v1_title} VRILEs.\n")
+            txtfile.write("\nSorted in descending order of average rates, "
+                          + f"dSIE/dt (magnitudes) for {v1_title} VRILEs.\n")
         else:
-            txtfile.write("\nRanks are based on the average rate of dSIE.\n")
+            txtfile.write("\nRanks are based on the magnitude of the average "
+                          + f"rates, dSIE/dt, for {v1_title} VRILEs.\n")
 
-        txtfile.write(f"\n\n{_generated_txt()}\n\n\n{table}\n")
-        
+        txtfile.write("\n" + _generated_txt() + "\n\n\n" + table + "\n")
+
         _txt_file_footer(txtfile)
 
     if verbose:

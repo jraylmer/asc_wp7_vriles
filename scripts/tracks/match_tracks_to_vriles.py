@@ -3,8 +3,10 @@ returned from function match_tracks_to_vriles() from the track_diagnostics.py
 module.
 """
 
+from pathlib import Path
+
 from src import script_tools
-from src.io import cache, config as cfg
+from src.io import cache, config as cfg, sumtabtxt
 from src.data import tracks
 from src.diagnostics import track_diagnostics
 
@@ -22,6 +24,11 @@ def main():
 
     cfg.set_config(*cmd.config)
 
+    # This is needed for updating/writing the summary table only as this script
+    # assumes the saved VRILEs have been calculated using correct options:
+    id_vriles_kw, join_vriles_kw, dt_min, dt_max = \
+        script_tools.get_id_vriles_options(cmd, footer=False)
+
     filter_kw = script_tools.get_track_filter_options(cmd, header=False,
                                                       footer=False)
 
@@ -31,7 +38,7 @@ def main():
     allowed_sectors = tracks.allowed_sectors(n_nei=cmd.track_n_sector_neighbours)
 
     vrds = "" if cmd.match_unjoined_vriles else "_joined"
-    yrng = f"{cmd.year_range[0]:04}-{cmd.year_range[1]:04}"
+    yrng = f"{dt_min.year:04}-{dt_max.year:04}"
 
     # Load cached VRILE and filtered track data (run relevant scripts first):
     # Also determine new header for updating track data at the end:
@@ -47,8 +54,9 @@ def main():
     vrile_data = cache.load(vriles_fname)
     track_data = cache.load(tracks_fname)
 
-    # Extract required track data (datetimes and sector for each coordinate)
+    # Extract required track data (IDs, datetimes and sector for each coordinate)
     # Assumes headers set as in the script generating the filtered track data:
+    track_ids = track_data[1+track_data[0].index("TRACK_IDS")]
     track_dts = track_data[1+track_data[0].index("DATETIMES")]
     track_sec = track_data[1+track_data[0].index("SECTOR_FLAG")]
 
@@ -67,6 +75,11 @@ def main():
         # is the number of matching track indices (different per VRILE).
         # The values are indices of the full, filtered track array:
         vrile_data[r]["track_indices"] = v_tr_indices[r]
+
+        # Mainly for output tables, helpful to also have the actual track IDs
+        # (similar format as above, but list of list of int):
+        vrile_data[r]["track_ids"] = [[int(track_ids[y]) for y in x]
+                                      for x in v_tr_indices[r]]
 
     # The new data (tr_v_indices; returned above) is a length n_track list
     # of length n_v_match list of length 2 list of region and VRILE indices,
@@ -93,6 +106,31 @@ def main():
     # Overwrite saved data, now updated:
     cache.save(vrile_data, vriles_fname)
     cache.save(track_data, tracks_fname)
+
+    # Save VRILE summary tables (possibly overwriting earlier-saved tables,
+    # but now VRILE dicationaries will have the track indicies so these are
+    # included in the table).
+    additional_metadata = {}
+
+    if cmd.match_ssmi:
+        if cmd.ssmi_dataset == "nt":
+            additional_metadata["SSM/I dataset"] = "NASA Team"
+            save_subdir = f"vriles_ssmi-nt_{dt_min.year}-{dt_max.year}"
+        else:
+            additional_metadata["SSM/I dataset"] = "Bootstrap"
+            save_subdir = f"vriles_ssmi-bt_{dt_min.year}-{dt_max.year}"
+    else:
+        save_subdir = f"vriles_cice_{dt_min.year}-{dt_max.year}"
+
+    additional_metadata["Time range"]  = (f"{dt_min.strftime('%d %b %Y')} to "
+                                          + f"{dt_max.strftime('%d %b %Y')}")
+    additional_metadata["Description"] = cfg.title
+
+    sumtabtxt.save_tables(vrile_data, id_vriles_kw,
+            which=[True, True, False, False],
+            vresults_labels=cfg.reg_labels_short,
+            additional_metadata=additional_metadata, verbose=True,
+            save_dir=Path(cfg.data_path["tables"], save_subdir))
 
 
 if __name__ == "__main__":

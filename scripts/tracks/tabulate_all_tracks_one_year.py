@@ -21,13 +21,20 @@ def main():
 
     cfg.set_config(*cmd.config)
 
-    cmd.track_lat_min = 70.
-    cmd.track_vor_min = 0.
+    # Keep original vorticity threshold for table to note if it is exceeded
+    # (i.e., is in the filtered set or not):
+    vor_threshold = cmd.track_vor_min * 1.e-5
 
     filter_kw = script_tools.get_track_filter_options(cmd, header=False,
                                                       footer=True)
 
-    print("Overriding track filter options to:")
+    cmd.track_lat_min = 70.
+    cmd.track_vor_min = 0.
+
+    filter_kw["vor_min"] = cmd.track_vor_min
+    filter_kw["lat_min"] = cmd.track_lat_min
+
+    print("Now setting track filter options (for sake of loading all tracks):")
     print(f"    --track_lat_min {cmd.track_lat_min}")
     print(f"    --track_vor_min {cmd.track_vor_min}\n")
 
@@ -55,20 +62,37 @@ def main():
     n_tracks = len(all_tracks[0])
 
     # The following information will be tabulated for each track:
-    tab_headers = ["START", "END", "TRACK ID",
+    tab_headers = ["START", "END", "TRACK ID", "MAX. VORT.\n(1e-5/s)", "> THR?",
                    " ".join([f"{i}" for i in range(n_regions)])]
 
-    tab_rows = [[all_tracks[1][j][0].strftime("%d-%b"),
+    # Argument for tabulate function:
+    floatfmt = ["", "", "", ".2f", "", ""]
+
+    tab_rows   = []
+    n_filtered = 0  # below, count number of tracks that would be filtered
+
+    for j in range(n_tracks):
+        row_j = [all_tracks[1][j][0].strftime("%d-%b"),
                  all_tracks[1][j][-1].strftime("%d-%b"),
                  all_tracks[0][j],
+                 all_tracks[5][j] * 1.e5,
+                 u"\u2713" if all_tracks[5][j] > vor_threshold else " ",
                  " ".join([u"\u2713" if x.any() else "-" for x in all_tracks[6][j]])]
-                for j in range(n_tracks)]
+
+        if all_tracks[5][j] >= vor_threshold:
+            n_filtered += 1
+
+        tab_rows.append(row_j)
 
     # Tabulate and save:
-    txt = f"Total number of {cmd.year} tracks: {n_tracks}\n\n"
+    txt =  f"Total number of tracks in {cmd.year:04}     : {n_tracks:>4}\n"
+    txt += f"of which exceed vorticity threshold: {n_filtered:>4} "
+    txt += f"({100.*n_filtered/n_tracks:.2f}%)\n\n"
+    txt += f"Vorticity threshold = {1.e5*vor_threshold:.5f} \u00d7 1e-5/s\n\n"
     txt += "Region/sector indices:\n"
     txt += "\n".join([f"  {i}: {region_labels[i]}" for i in range(n_regions)])
-    txt += "\n\n" + tabulate(tab_rows, headers=tab_headers) + "\n"
+    txt += "\n\n" + tabulate(tab_rows, headers=tab_headers, floatfmt=floatfmt)
+    txt += "\n"
 
     cache.write_txt(txt, f"tracks_all_{cmd.year:04}.txt",
                     directory=cfg.data_path["tables"])
