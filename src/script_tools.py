@@ -5,6 +5,7 @@ with some functions to print options to the console when running scripts.
 from argparse import ArgumentParser
 import calendar
 from datetime import datetime as dt
+from os import environ
 
 from .data import tracks
 
@@ -27,17 +28,25 @@ def _print_footer():
 def argument_parser(**kw):
     """Return an argparse.ArgumentParser() instance with configuration
     argument (-c --config [<cfg_1> [<cfg_2> ...]]) option already added.
-    
+    The default for this flag is set from the environment variable
+    ASC_WP7_VRILES_CONFIG, if available.
+
     Keyword arguments are passed to argparse.ArgumentParser().
-    
+
     """
 
     prsr = ArgumentParser(**kw)
 
     # The configuration is generally always needed:
+    config_default = ["default"]
+
+    if "ASC_WP7_VRILES_CONFIG" in environ.keys():
+        config_default += environ["ASC_WP7_VRILES_CONFIG"].split(" ")
+
     prsr.add_argument("-c", "--config", type=str, nargs="*",
-                      default=["default"], help="Configuration file(s)")
-    
+                      default=config_default,
+                      help="Configuration file(s)")
+
     return prsr
 
 
