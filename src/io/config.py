@@ -28,7 +28,7 @@ data_path = {}
 _all_reg_info = {
     "pan_Arctic"                : {"long_name": "Pan Arctic"                     , "short_name": "PAN", "sector_lon_bnds": [(0., 360.)]             },
     "labrador_sea"              : {"long_name": "Labrador Sea"                   , "short_name": "LAB", "sector_lon_bnds": [(275., 315.)]           },
-    "gin_seas"                  : {"long_name": "GIN Seas"                       , "short_name": "GIN", "sector_lon_bnds": [(315., 360.), (0., 20.)]},
+    "gin_seas"                  : {"long_name": "Greenland Sea"                  , "short_name": "GRE", "sector_lon_bnds": [(315., 360.), (0., 20.)]},
     "barents_sea"               : {"long_name": "Barents Sea"                    , "short_name": "BAR", "sector_lon_bnds": [(20., 60.)]             },
     "kara_sea"                  : {"long_name": "Kara Sea"                       , "short_name": "KAR", "sector_lon_bnds": [(60., 100.)]            },
     "laptev_sea"                : {"long_name": "Laptev Sea"                     , "short_name": "LAP", "sector_lon_bnds": [(100., 150.)]           },
