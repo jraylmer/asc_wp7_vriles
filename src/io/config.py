@@ -143,6 +143,7 @@ def set_config(*cfg_files):
     globals()["data_path"]["atmo_rean"] = Path(cfg_loc.get("ATMO DATA", "dir_rean")).resolve()
     globals()["reanalysis_name"]        = cfg_loc.get("ATMO DATA", "title")
     globals()["reanalysis_frequency"]   = cfg_loc.get("ATMO DATA", "frequency")
+    globals()["reanalysis_source"]      = cfg_loc.get("ATMO DATA", "source")
 
     # Output directories:
     globals()["data_path"]["cache"]  = Path(cfg_loc.get("RESULTS", "dir_cache")).resolve()
