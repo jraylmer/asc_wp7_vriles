@@ -80,7 +80,7 @@ def auto_set_units(atm_data, field_name):
         atm_data -= 273.15
 
 
-def get_atmospheric_data_time_averages(field, freq="daily",
+def get_atmospheric_data_time_averages(nc_var_names, freq="daily",
                                        dt_min=dt(1980,  1,  1, 12, 0),
                                        dt_max=dt(1980, 12, 31, 12, 0),
                                        slice_to_cice_grid=True,
@@ -92,9 +92,8 @@ def get_atmospheric_data_time_averages(field, freq="daily",
 
     Parameters
     ----------
-    field : str
-        Field name, which should match that in the netCDF file name and
-        variable name.
+    nc_var_names : length-nv list of str
+        The netCDF variable names to load.
 
 
     Optional parameters
@@ -154,41 +153,35 @@ def get_atmospheric_data_time_averages(field, freq="daily",
 
     # List of full paths to netCDF files:
     nc_files = [str(Path(cfg.data_path[f"atmo_{freq[0]}"],
-                    f"{field}_{freq[0]}_y{y}.nc")) for y in years_reqd]
+                    f"atmo_fields_{freq[0]}_y{y}.nc")) for y in years_reqd]
 
-    # [**] Can't remember exactly what this is doing/why necessary: [**]
-    if "t2" in field and field != "t2":
-        field_nc_name = "t2_detrended_resid"
-    elif "qlw" in field and field!= "qlw":
-        field_nc_name = "qlw_detrended_resid"
-    elif "qsw" in field and field!= "qsw":
-        field_nc_name = "qsw_detrended_resid"
-    else:
-        field_nc_name = field
-
-    # Load data arrays including time and spatial coordinates:
-    lon, lat, time, data = nct.get_arrays(nc_files, ["nav_lon", "nav_lat"],
-                                          ["time", field_nc_name])
+    # Load data arrays [3:] including time [2] and spatial coordinates [0,1]:
+    data = list(nct.get_arrays(nc_files, ["nav_lon", "nav_lat"],
+                               ["time"] + [f"{x}_{freq[0]}"
+                                           for x in nc_var_names]))
 
     # Need also the time units and calendar to work out datetime stamps:
     _, t_units, t_cal = nct.get_nc_time_props(nc_files[0])
 
-    date = nct.cftime_to_datetime(nc.num2date(time, units=t_units,
+    date = nct.cftime_to_datetime(nc.num2date(data[2], units=t_units,
                                               calendar=t_cal))
 
     # Get time slice: indices matching specified date range:
     j_t = [(x >= dt_min) and (x <= dt_max) for x in date]
 
     date = date[j_t]
-    data = data[j_t]
 
-    if slice_to_cice_grid:  # spatial slice
-        lon, lat, data = slice_atm_data_to_cice_grid(lon, lat, data)
+    for k in range(3, len(data)):
+        data[k] = data[k][j_t]
 
-    if auto_units:
-        auto_set_units(data, field)
+        if slice_to_cice_grid:  # spatial slice
+            lon, lat, data[k] = slice_atm_data_to_cice_grid(data[0], data[1],
+                                                            data[k])
 
-    return date, lon, lat, data
+        if auto_units:
+            auto_set_units(data[k], nc_var_names[k-3])
+
+    return date, data[0], data[1], *data[3:]
 
 
 def get_atmospheric_forcing_data(field, dt_min, dt_max, seltime=1,

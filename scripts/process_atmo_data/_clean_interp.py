@@ -3,14 +3,11 @@ run directly; instead, it is run automatically by the bash script
 
     scripts/process_atmo_data/interp_to_cice_grid.sh
 
-to finalise the interpolated data in the format required by CICE, and also
-return to the bash script the output directory paths required for the output
-daily and monthly averages of the forcing data that are calculated in the next
-step of that same bash script.
+to finalise the interpolated data in the format required by CICE.
 
 The input file (flag -i), input (JRA-55-do) variable name (-v), and year (-y)
-are required. The output directories can also be specified (flags -o,
---out-dir-day, --out-dir-mon) but if not they are read from the config.
+are required. The output directory can also be specified (flags -o) but if not
+they it is read from the config.
 
 Wind is a special case, as the (u,v) components need to be rotated onto the
 local direction of the CICE grid using the (sine/cosine of) grid angle files
@@ -97,35 +94,18 @@ def main():
     prsr.add_argument("-v", "--variable", type=str, nargs="*", required=True)
     prsr.add_argument("-i", "--in-file" , type=str, nargs="*", required=True)
     prsr.add_argument("-o", "--out-dir" , type=str, default="")
-    prsr.add_argument("--out-dir-day"   , type=str, default="")
-    prsr.add_argument("--out-dir-mon"   , type=str, default="")
-    prsr.add_argument("--no-print-dirs" , action="store_true")
     cmd = prsr.parse_args()
 
     cfg.set_config(*cmd.config)
 
-    # Determine the output directories for the forcing data and
-    # (not computed here) daily and monthly averages.
-    #
-    # If the inputs -o, --out-dir-day, and/or --out-dir-mon are set to ''
-    # (empty string), i.e., not passed to this script, then get them from the
-    # config and return. Otherwise, assume they are overridden in the calling
-    # bash script and just return those overriding values.
+    # Determine the output directory for the forcing data. If the input -o
+    # is set to '' (empty string), i.e., not passed to this script, then get
+    # it from the config.
     #
     if cmd.out_dir == "":
         out_dir = cfg.data_path["atmo_forc"]
     else:
         out_dir = cmd.out_dir
-
-    if cmd.out_dir_day == "":
-        out_dir_day = cfg.data_path["atmo_d"]
-    else:
-        out_dir_day = cmd.out_dir_day
-
-    if cmd.out_dir_mon == "":
-        out_dir_mon = cfg.data_path["atmo_m"]
-    else:
-        out_dir_mon = cmd.out_dir_mon
 
     # Global attributes common to all variables:
     nc_global_attr = {
@@ -224,15 +204,6 @@ def main():
             nc_dims, nc_vars_i, nc_global_attr=nc_global_attr,
             dir_save=Path(out_dir), compress=False,
             nc_Dataset_kw={"format": "NETCDF3_CLASSIC"})
-
-
-    if not cmd.no_print_dirs:
-        # Print output directories to console to be read by bash script
-        #
-        # Leading space and supression of newline character at the end ensures
-        # bash script can convert output to array with last three elements
-        # being the two paths (this likely won't work if paths contain spaces):
-        print(f" {str(out_dir)} {str(out_dir_day)} {str(out_dir_mon)}", end="")
 
 
 if __name__ == "__main__":
