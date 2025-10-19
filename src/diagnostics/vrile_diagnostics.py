@@ -152,10 +152,10 @@ def classify_aylmer_2(T, D):
 
     In summary, this classification method is defined:
 
-                      / nan         if T >= 0 and D >= 0
+                      ( nan         if T >= 0 and D >= 0
         C_aylmer_2 = <  -1          if T >= 0 and D < 0
-                      | +1          if T < 0  and D >= 0
-                      \ C_aylmer_1  otherwise (T < 0 and D < 0)
+                      ( +1          if T < 0  and D >= 0
+                      ( C_aylmer_1  otherwise (T < 0 and D < 0)
 
     where
 
@@ -203,9 +203,9 @@ def classify(thermo, dynam):
     All methods [in this module: classify_*(T, D)] are coded to return a value C
     in the range [-1, 1] such that:
 
-             / -1  fully dynamic
+             ( -1  fully dynamic
         C = <   0  equally dynamic/thermodynamic
-             \ +1  fully thermodynamic
+             ( +1  fully thermodynamic
 
 
     Parameters
@@ -311,7 +311,7 @@ def compute_averages_over_vriles(vrile_results, reg_masks, hist_diags=[],
     metrics_hist : length n_hist list of length n_reg list of 1D arrays
         metrics_hist[d][r][v] is the time and area average/integral as
         specified for history diagnostic d, VRILE v of region r.
-    
+
     metrics_proc : similar to above but for the 'processed' diagnostics
     metrics_atmo : similar to above but for the atmospheric fields
 
@@ -427,15 +427,13 @@ def compute_averages_over_vriles(vrile_results, reg_masks, hist_diags=[],
         else:
             proc_data = []
 
-        # Atmospheric data is loaded individually per field and returns lon/lat
-        # coordinates, so we need the 4th (i.e., last) return value, not the
+        # Atmospheric data function also returns datetimes and lon/lat
+        # coordinates, so we need the 4th onwards return values, not the
         # second as above for history and processed data which do not return
         # coordinates:
-        atmo_data = []
-        for j in range(n_atmo):
-            atmo_data.append(atmo.get_atmospheric_data_time_averages(
-                atmo_fields[j], "daily", dt_min_y, dt_max_y,
-                slice_to_cice_grid=True)[-1])
+        atmo_data = list(atmo.get_atmospheric_data_time_averages(
+                         atmo_fields, "daily", dt_min_y, dt_max_y,
+                         slice_to_cice_grid=True))[3:]
 
         # Ice concentration needed to compute mask:
         aice = hist_data[hist_diags.index("aice_d")]
@@ -752,14 +750,13 @@ def compute_averages_over_vriles_detrend(vrile_results, reg_masks,
     if verbose and n_atmo > 0:
         print(f"Loading atmospheric data, years {dt_min.year}-{dt_max.year}")
 
-    # Atmospheric data is loaded individually per field and returns lon/lat
-    # coordinates, so we need the 4th (i.e., last) return value, not the second
-    # as above for processed data which do not return coordinates:
-    atmo_data = []
-    for j in range(n_atmo):
-        atmo_data.append(atmo.get_atmospheric_data_time_averages(
-                atmo_fields[j], "daily", dt_min, dt_max,
-                slice_to_cice_grid=True)[-1])
+    # Atmospheric data function also returns datetimes and lon/lat
+    # coordinates, so we need the 4th onwards return values, not the
+    # second as above for history and processed data which do not return
+    # coordinates:
+    atmo_data = list(atmo.get_atmospheric_data_time_averages(
+                     atmo_fields, "daily", dt_min_y, dt_max_y,
+                     slice_to_cice_grid=True))[3:]
 
     # Ice concentration needed to compute mask:
     aice = hist_data[hist_diags.index("aice_d")]
