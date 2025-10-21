@@ -234,7 +234,8 @@ def compute_averages_over_vriles(vrile_results, reg_masks, hist_diags=[],
         norm_time_proc=True, norm_area_proc=True, norm_unit_proc=None,
         norm_time_atmo=True, norm_area_atmo=True, norm_unit_atmo=None,
         year_range=[1979, 2023], months_allowed=[5,6,7,8,9], joined=True,
-        proc_metric="div_u", aice_thr=.15, verbose=False):
+        proc_metric="div_u", atmo_file_prefix="atmo_fields", aice_thr=.15,
+        verbose=False):
     """Calculate time and spatial integrals or averages of arbitrary quantities
     over the region of newly exposed sea ice during VRILEs.
 
@@ -298,6 +299,11 @@ def compute_averages_over_vriles(vrile_results, reg_masks, hist_diags=[],
 
         N.B. limitation: all processed diagnostics must exist within the same
         set of files.
+
+    atmo_file_prefix : str, default = 'atmo_fields'
+        Prefix of netCDF files for daily-mean atmospheric forcing files, passed
+        as to function get_atmospheric_forcing_time_averages() of module
+        src.data.atmo.py, parameter nc_file_prefix.
 
     aice_thr : float, default = .15
         Threshold sea ice concentration to define 'ice' versus 'no ice'.
@@ -394,10 +400,10 @@ def compute_averages_over_vriles(vrile_results, reg_masks, hist_diags=[],
         after events and their time indices identified)."""
         for jd in range(len(dat)):
             # Time integral/average (norm_time is a bool):
-            if norm_time[jd]:  # do time integral
-                x = np.nansum(dat[jd][jt,:,:]*mwi, axis=0)
-            else: # do time average:
+            if norm_time[jd]:  # do time average
                 x = np.nanmean(dat[jd][jt,:,:]*mwi, axis=0)
+            else: # do time integral:
+                x = np.nansum(dat[jd][jt,:,:]*mwi, axis=0)
             # Spatial integral/average and assign
             # (norm_area is a float, 1. if for integral):
             res[jd][jr][jv] = np.nansum(x*mra)/norm_area[jd]
@@ -433,6 +439,7 @@ def compute_averages_over_vriles(vrile_results, reg_masks, hist_diags=[],
         # coordinates:
         atmo_data = list(atmo.get_atmospheric_data_time_averages(
                          atmo_fields, "daily", dt_min_y, dt_max_y,
+                         nc_file_prefix=atmo_file_prefix,
                          slice_to_cice_grid=True))[3:]
 
         # Ice concentration needed to compute mask:
@@ -531,7 +538,7 @@ def compute_averages_over_vriles_detrend(vrile_results, reg_masks,
         norm_time_proc=True, norm_area_proc=True, norm_unit_proc=None,
         norm_time_atmo=True, norm_area_atmo=True, norm_unit_atmo=None,
         year_range=[1979, 2023], joined=True, proc_metric="div_u",
-        aice_thr=.15, verbose=False):
+        atmo_file_prefix="atmo_fields", aice_thr=.15, verbose=False):
     """Calculate time and spatial integrals or averages of arbitrary quantities
     over the region of newly exposed sea ice during VRILEs, similarly to function
     compute_averages_over_vriles(), but here also detrending these quantities
@@ -614,6 +621,11 @@ def compute_averages_over_vriles_detrend(vrile_results, reg_masks,
 
         N.B. limitation: all processed diagnostics must exist within the same
         set of files.
+
+    atmo_file_prefix : str, default = 'atmo_fields'
+        Prefix of netCDF files for daily-mean atmospheric forcing files, passed
+        as to function get_atmospheric_forcing_time_averages() of module
+        src.data.atmo.py, parameter nc_file_prefix.
 
     aice_thr : float, default = .15
         Threshold sea ice concentration to define 'ice' versus 'no ice'.
@@ -756,6 +768,7 @@ def compute_averages_over_vriles_detrend(vrile_results, reg_masks,
     # coordinates:
     atmo_data = list(atmo.get_atmospheric_data_time_averages(
                      atmo_fields, "daily", dt_min_y, dt_max_y,
+                     nc_file_prefix=atmo_file_prefix,
                      slice_to_cice_grid=True))[3:]
 
     # Ice concentration needed to compute mask:

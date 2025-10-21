@@ -83,6 +83,7 @@ def auto_set_units(atm_data, field_name):
 def get_atmospheric_data_time_averages(nc_var_names, freq="daily",
                                        dt_min=dt(1980,  1,  1, 12, 0),
                                        dt_max=dt(1980, 12, 31, 12, 0),
+                                       nc_file_prefix="atmo_fields",
                                        slice_to_cice_grid=True,
                                        auto_units=True):
     """Load specified daily or monthly average atmospheric data over a
@@ -108,6 +109,11 @@ def get_atmospheric_data_time_averages(nc_var_names, freq="daily",
         Start and end datetimes for which to load data. For freq = 'daily',
         hour and minute are overwritten as 12 and 0 respectively, so that daily
         averages written at 12:00 are compared correctly with these limits. [FN1]
+
+    nc_file_prefix : str, default = "atmo_fields"
+        Prefix of netCDF files as located in cfg.data_path[f'atmo_{f}'] so that
+        files are f'{nc_file_prefix}_{f}_y{y}.nc', where f is either 'd' or 'm'
+        and 'y' is the year.
 
     slice_to_cice_grid : bool, default = True
         If True (default), slices the data arrays so that the domain lines up
@@ -153,12 +159,11 @@ def get_atmospheric_data_time_averages(nc_var_names, freq="daily",
 
     # List of full paths to netCDF files:
     nc_files = [str(Path(cfg.data_path[f"atmo_{freq[0]}"],
-                    f"atmo_fields_{freq[0]}_y{y}.nc")) for y in years_reqd]
+                    f"{nc_file_prefix}_{freq[0]}_y{y}.nc")) for y in years_reqd]
 
     # Load data arrays [3:] including time [2] and spatial coordinates [0,1]:
     data = list(nct.get_arrays(nc_files, ["nav_lon", "nav_lat"],
-                               ["time"] + [f"{x}_{freq[0]}"
-                                           for x in nc_var_names]))
+                               ["time"] + nc_var_names))
 
     # Need also the time units and calendar to work out datetime stamps:
     _, t_units, t_cal = nct.get_nc_time_props(nc_files[0])

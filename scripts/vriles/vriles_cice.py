@@ -80,6 +80,7 @@ def main():
         avg_hist, avg_proc, _ = vrile_diagnostics.compute_averages_over_vriles(
             vrile_results, region_masks, hist_diags=hist_diags,
             proc_diags=proc_diags, proc_metric=proc_metric,
+            norm_time_hist=False, norm_time_proc=False,
             joined="joined" in x, **caov_kw)
 
         if cmd.class_no_detrend:
@@ -132,46 +133,83 @@ def main():
         """
         return [x[0], x[1] - x[2], x[1]]
 
-    avg_hist, _, _ = vrile_diagnostics.compute_averages_over_vriles(
+    # We also want some atmospheric forcing variables, which are handled by the
+    # same function but with separate inputs:
+    atmo_diags = ["t2_d", "qlw_d", "qsw_d"]
+
+    avg_hist, _, avg_atmo = vrile_diagnostics.compute_averages_over_vriles(
         vrile_results, region_masks, hist_function=calc_seb_ai,
         hist_diags=hist_diags, norm_time_hist=True, norm_area_hist=True,
-        norm_unit_hist=1., **caov_kw)
+        norm_unit_hist=1., atmo_fields=atmo_diags, norm_time_atmo=True,
+        norm_area_atmo=True, norm_unit_atmo=1., **caov_kw)
 
     # Common first part of cached file names:
     save_file_start = f"vriles_cice_{dt_min.year}-{dt_max.year}_diagnostics"
 
-    # Save the list of diagnostics (avg_hist) prepended with the list of
-    # diagnostic names, as a 'header':
-    cache.save([["aice_d", "seb_ai_d", "fsurf_ai_d"]] + avg_hist,
-               f"{save_file_start}_hist.pkl")
+    # Save the list of diagnostics (avg_hist + avg_atmo) prepended with the
+    # list of diagnostic names, as a 'header' (add in the '_d' for atmospheric
+    # diagnostics headers for consistency with the history diagnostics):
+    cache.save([["aice_d", "seb_ai_d", "fsurf_ai_d"] + atmo_diags]
+               + avg_hist + avg_atmo,
+               f"{save_file_start}_hist_atmo.pkl")
 
 
     # Calculate other 'diagnostics over VRILEs' from 'processed' data
     #
-    # List of 'metrics' (poor earlier choice of terminology -- essentially,
-    # refers to the 'processed' data sub-directory -- the corresponding
-    # diagnostics, normalisation options:
+    # (1) The div_curl diagnostics [subdirectory of cfg.data_path['proc_d'] is
+    # referred to as 'metric' in the call to the compute_averages_over_vriles()
+    # function... poor earlier choice of terminology]
     #
-    proc_metrics = ["hist_detrended", "div_curl"]
+    _, avg_proc, _ = vrile_diagnostics.compute_averages_over_vriles(
+        vrile_results, region_masks, proc_metric="div_curl",
+        proc_diags=["div_strair_d", "curl_strair_d"],
+        norm_time_proc=True, norm_area_proc=True, norm_unit_proc=1.e-7,
+        **caov_kw)  # units become 10^-7 N m-3
 
-    proc_diags = [[f"detrended_{x}_d" for x in ["daidtt", "daidtd", "dvidtt", "dvidtd", "seb_ai"]],
-                  ["div_strair_d", "curl_strair_d"]]
+    # Save the list of diagnostics (avg_proc) prepended with the list of
+    # diagnostic names as a 'header':
+    cache.save([["div_strair_d", "curl_strair_d"]] + avg_proc,
+                f"{save_file_start}_div_curl.pkl")
 
-    # Options: norm_time_proc, norm_area_proc, norm_unit_proc:
-    proc_norm = [[True, [False]*4 + [True], [1.0E11]*4 + [1.]],
-                 [True, False             , 1.0E5            ]]
+    # (2) Detrended diagnostics from CICE. Here, also include detrended
+    # atmospheric forcing fields (they are loaded/processed via the 'atmo'
+    # parameters, because those fields are on the extended atmosphere grid):
+    #
+    proc_diags  = [f"detrended_{x}_d"
+                   for x in ["daidtt", "daidtd", "dvidtt", "dvidtd", "seb_ai"]]
 
-    for k in range(len(proc_metrics)):
-        _, avg_proc, _ = vrile_diagnostics.compute_averages_over_vriles(
-            vrile_results, region_masks, proc_metric=proc_metrics[k],
-            proc_diags=proc_diags[k], norm_time_proc=proc_norm[k][0],
-            norm_area_proc=proc_norm[k][1], norm_unit_proc=proc_norm[k][2],
-            **caov_kw)
+    atmo_fields = [f"detrended_{x}_d" for x in ["t2", "qlw", "qsw", "qnet"]]
 
-        # Save the list of diagnostics (avg_proc) prepended with the list of
-        # diagnostic names as a 'header':
-        cache.save([proc_diags[k]] + avg_proc,
-                   f"{save_file_start}_{proc_metrics[k]}.pkl")
+    _, avg_proc, avg_atmo = vrile_diagnostics.compute_averages_over_vriles(
+        vrile_results, region_masks, proc_metric="hist_detrended",
+        proc_diags=proc_diags, norm_time_proc=True,
+        norm_area_proc=[False]*4 + [True],
+        norm_unit_proc=[1.e11]*4 + [1.],
+        atmo_fields=atmo_fields, atmo_file_prefix="atmo_detrended",
+        norm_time_atmo=True, norm_area_atmo=True, norm_unit_atmo=1.)
+
+    # Clarification of units in the above:
+    #
+    # daidt are in %/day = 100*fraction/day
+    #     Divide by 100 to get values in fraction/day
+    #     Then integrating (norm_area_proc = False) => m^2/day
+    #     Then put in 10^3 km^2/day => divide by 10^9
+    #     Overall, divide by 10^11 => final units 10^3 km^2/day
+    #                                             =============
+    #
+    # dvidt are in cm/day
+    #     Divide by 100 to get values in m/day
+    #     Then integrating => m^3/day
+    #     Then put in km^3/day => divide by 10^9
+    #     Overall, divide by 10^11 => final units km^3/day
+    #                                             ========
+    #
+    # For SEB and atmospheric fields, both time/area normalised
+    # -> W/m2 for radiation, no change in units. For t2, data is
+    # automatically change from K to degrees C.
+
+    cache.save([proc_diags + atmo_fields] + avg_proc + avg_atmo,
+               f"{save_file_start}_hist_atmo_detrended.pkl")
 
 
 if __name__ == "__main__":
