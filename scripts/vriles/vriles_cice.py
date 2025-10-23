@@ -114,43 +114,81 @@ def main():
     # 
     # List of history diagnostics. Here, it is implicitly modified in the
     # compute_averages_over_vriles() function so that what it returns does not
-    # correspond to this list. Specifically, we want surface energy balance
-    # (SEB), which is not a history output but can be computed from 'fsurf_ai'
-    # and 'fcondtop_ai' (SEB = former minus the latter). So load 'aice' and
-    # those diagnostics (don't really need 'aice', but need to be careful
-    # because that function requires 'aice' to do the calculations so loads it
-    # by prepending it to the list. So, when we use the 'hist_function' option
-    # (below) to implicitly calculate SEB 'on-the-fly', it is less confusing to
-    # just add it here manually:
+    # correspond to this list. Specifically, we want to add the total ice
+    # concentration and volume tendencies and calculate the surface energy
+    # balance (SEB), which are not history outputs but can be computed from
+    # the dynamic/thermodynamic components d{a,v}idt{t,d}_d, and for SEB the
+    # 'fsurf_ai' and 'fcondtop_ai' (SEB = former minus the latter).
     #
-    hist_diags = ["aice_d", "fsurf_ai_d", "fcondtop_ai_d"]
+    # So load 'aice' and the required diagnostics. We don't really need 'aice',
+    # but need to be careful because that function requires 'aice' to do the
+    # calculations so loads it by prepending it to the list. So, when we use
+    # the 'hist_function' option (below) to implicitly calculate SEB 'on-the-
+    # fly', it is less confusing to just add it here manually. Also, the list
+    # of diagnostics must not be changed in length, hence the duplication of
+    # daidtt_d and dvidtt_d below acting as placeholders for daidt_d and
+    # dvidt_d (total tendencies):
+    #
+    hist_diags = ["aice_d", "daidtd_d", "daidtt_d", "daidtt_d", "dvidtd_d",
+                  "dvidtt_d", "dvidtt_d", "fsurf_ai_d", "fcondtop_ai_d"]
 
-    def calc_seb_ai(x):
-        """Calculate surface energy balance, seb_ai = fsurf_ai - fcondtop_ai
+    # We pass 'hist_diags' to the diagnostic function for processing, which
+    # then ends up updating the actual diagnostics after using the
+    # hist_diag_converter() function defined below. We will want the names of
+    # the latter to cache the data:
 
-        This implicitly converts the list of data [aice, fsurf_ai, fcondtop_ai]
-        into [aice, seb_ai, fsurf_ai] in function compute_averages_over_vriles(). 
+    hist_diags_updated = ["aice_d"  , "daidtd_d", "daidtt_d"  , "daidt_d",
+                                      "dvidtd_d", "dvidtt_d"  , "dvidt_d",
+                                      "seb_ai_d", "fsurf_ai_d"]
+
+    def hist_diag_converter(x):
+        """This will be used to convert the list of data corresponding to
+        hist_diags into the list corresponding to hist_diags_updated inside
+        the diagnostics function compute_averages_over_vriles().
         """
-        return [x[0], x[1] - x[2], x[1]]
+        return [x[0], x[1], x[2], x[1] + x[2],  # aice, daidtd, daidtt, daidt
+                      x[4], x[5], x[4] + x[5],  #       dvidtd, dvidtt, dvidt
+                      x[7] - x[8], x[7]]        #       seb_ai, fsurf_ai
+
 
     # We also want some atmospheric forcing variables, which are handled by the
-    # same function but with separate inputs:
+    # same diagnostics function but with separate inputs:
     atmo_diags = ["t2_d", "qlw_d", "qsw_d"]
 
     avg_hist, _, avg_atmo = vrile_diagnostics.compute_averages_over_vriles(
-        vrile_results, region_masks, hist_function=calc_seb_ai,
-        hist_diags=hist_diags, norm_time_hist=True, norm_area_hist=True,
-        norm_unit_hist=1., atmo_fields=atmo_diags, norm_time_atmo=True,
+        vrile_results, region_masks, hist_function=hist_diag_converter,
+        hist_diags=hist_diags, norm_time_hist=True,
+        norm_area_hist=[True] + [False]*6 + [True]*2,
+        norm_unit_hist=[1.  ] + [1.e11]*6 + [1.  ]*2,
+        atmo_fields=atmo_diags, norm_time_atmo=True,
         norm_area_atmo=True, norm_unit_atmo=1., **caov_kw)
+
+    # Clarification of units in the above:
+    #
+    # daidt are in %/day = 100*fraction/day
+    #     Divide by 100 to get values in fraction/day
+    #     Then integrating (norm_area_proc = False) => m^2/day
+    #     Then put in 10^3 km^2/day => divide by 10^9
+    #     Overall, divide by 10^11 => final units 10^3 km^2/day
+    #                                             =============
+    #
+    # dvidt are in cm/day
+    #     Divide by 100 to get values in m/day
+    #     Then integrating => m^3/day
+    #     Then put in km^3/day => divide by 10^9
+    #     Overall, divide by 10^11 => final units km^3/day
+    #                                             ========
+    #
+    # For seb_ai and fsurf_ai, and atmospheric fields, both time/area
+    # normalised -> no change in units.
 
     # Common first part of cached file names:
     save_file_start = f"vriles_cice_{dt_min.year}-{dt_max.year}_diagnostics"
 
     # Save the list of diagnostics (avg_hist + avg_atmo) prepended with the
-    # list of diagnostic names, as a 'header' (add in the '_d' for atmospheric
-    # diagnostics headers for consistency with the history diagnostics):
-    cache.save([["aice_d", "seb_ai_d", "fsurf_ai_d"] + atmo_diags]
-               + avg_hist + avg_atmo,
+    # list of diagnostic names, as a 'header':
+
+    cache.save([hist_diags_updated + atmo_diags] + avg_hist + avg_atmo,
                f"{save_file_start}_hist_atmo.pkl")
 
 
@@ -176,37 +214,21 @@ def main():
     # parameters, because those fields are on the extended atmosphere grid):
     #
     proc_diags  = [f"detrended_{x}_d"
-                   for x in ["daidtt", "daidtd", "dvidtt", "dvidtd", "seb_ai"]]
+                   for x in ["daidtd", "daidtt", "daidt",
+                             "dvidtd", "dvidtt", "dvidt",
+                             "seb_ai", "div_strair", "curl_strair"]]
 
     atmo_fields = [f"detrended_{x}_d" for x in ["t2", "qlw", "qsw", "qnet"]]
 
     _, avg_proc, avg_atmo = vrile_diagnostics.compute_averages_over_vriles(
         vrile_results, region_masks, proc_metric="hist_detrended",
         proc_diags=proc_diags, norm_time_proc=True,
-        norm_area_proc=[False]*4 + [True],
-        norm_unit_proc=[1.e11]*4 + [1.],
+        norm_area_proc=[False]*6 + [True]*3,
+        norm_unit_proc=[1.e11]*6 + [1., 1.e-7, 1.e-7],
         atmo_fields=atmo_fields, atmo_file_prefix="atmo_detrended",
         norm_time_atmo=True, norm_area_atmo=True, norm_unit_atmo=1.)
 
-    # Clarification of units in the above:
-    #
-    # daidt are in %/day = 100*fraction/day
-    #     Divide by 100 to get values in fraction/day
-    #     Then integrating (norm_area_proc = False) => m^2/day
-    #     Then put in 10^3 km^2/day => divide by 10^9
-    #     Overall, divide by 10^11 => final units 10^3 km^2/day
-    #                                             =============
-    #
-    # dvidt are in cm/day
-    #     Divide by 100 to get values in m/day
-    #     Then integrating => m^3/day
-    #     Then put in km^3/day => divide by 10^9
-    #     Overall, divide by 10^11 => final units km^3/day
-    #                                             ========
-    #
-    # For SEB and atmospheric fields, both time/area normalised
-    # -> W/m2 for radiation, no change in units. For t2, data is
-    # automatically change from K to degrees C.
+    # Note units: same as non-detrended versions above:
 
     cache.save([proc_diags + atmo_fields] + avg_proc + avg_atmo,
                f"{save_file_start}_hist_atmo_detrended.pkl")

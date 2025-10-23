@@ -57,12 +57,6 @@ def main():
     nc_var_attr["dvidtt"] = {"long_name": "volume tendency thermo"  , "units": "cm/day"}
     nc_var_attr["meltb"]  = {"long_name": "basal ice melt"          , "units": "cm/day"}
 
-    # Shared attributes:
-    for k in nc_var_attr.keys():
-        nc_var_attr[k]["cell_measures"] = "area: tarea"
-        nc_var_attr[k]["cell_methods"]  = f"{nc_t_name}: mean area: mean"
-        nc_var_attr[k]["coordinates"]   = "TLON TLAT"
-
     # Shared global attributes in all files:
     nc_global_attr = {}
     nc_global_attr["title"] = "CICE diagnostics: detrended history data"
@@ -132,14 +126,42 @@ def main():
     data_cice_extra = data_cice[len(fields):]
     data_cice       = data_cice[:len(fields)]
 
-    # Surface energy balance = seb_ai = fsurf_ai - fcondtop
-    fields += ["seb_ai_d"]
-    nc_var_attr["seb_ai"] = {"long_name": "surface energy balance", "units": "W/m^2"}
-    data_cice += [data_cice_extra[0] - data_cice_extra[1]]
+    # Add total tendencies and surface energy balance
+    # (seb_ai = fsurf_ai - fcondtop):
+    fields += ["daidt_d", "dvidt_d", "seb_ai_d"]
+
+    nc_var_attr["daidt"]  = {"long_name": "area tendency total"   , "units": "%/day"}
+    nc_var_attr["dvidt"]  = {"long_name": "volume tendency total" , "units": "cm/day"}
+    nc_var_attr["seb_ai"] = {"long_name": "surface energy balance", "units": "W m-2"}
+
+    data_cice += [  data_cice[fields.index("daidtd_d")]
+                  + data_cice[fields.index("daidtt_d")],    # = daidt
+                    data_cice[fields.index("dvidtd_d")]
+                  + data_cice[fields.index("dvidtt_d")],    # = dvidt
+                  data_cice_extra[0] - data_cice_extra[1]]  # = seb_ai
+
+    # Add processed diagnostics (wind stress divergence/curl):
+    _, data_proc = cice.get_processed_data("div_curl",
+        ["div_strair_d", "curl_strair_d"], dt_min=dt(y1, 1, 1),
+        dt_max=dt(y2, 12, 31, 23, 0), frequency="daily",
+        slice_to_atm_grid=False)
+
+    fields += ["div_strair_d", "curl_strair_d"]
+
+    nc_var_attr["div_strair"]  = {"long_name": "Wind stress divergence", "units": "N m-3"}
+    nc_var_attr["curl_strair"] = {"long_name": "Wind stress curl"      , "units": "N m-3"}
+
+    data_cice += data_proc
 
     # Create land mask and then set missing to 0 for purposes of calculating
     # trends (then later apply land mask to put it back):
     land_mask = np.where(np.isnan(data_cice[0][0,:,:]), np.nan, 1.0)
+
+    # Add shared variable attributes:
+    for k in nc_var_attr.keys():
+        nc_var_attr[k]["cell_measures"] = "area: tarea"
+        nc_var_attr[k]["cell_methods"]  = f"{nc_t_name}: mean area: mean"
+        nc_var_attr[k]["coordinates"]   = "TLON TLAT"
 
     # Store residual components, reshaped into (nyears,365,ny,nx), here:
     data_out = {}
