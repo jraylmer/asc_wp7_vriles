@@ -56,6 +56,8 @@ def main():
     nc_var_attr["dvidtd"] = {"long_name": "volume tendency dynamics", "units": "cm/day"}
     nc_var_attr["dvidtt"] = {"long_name": "volume tendency thermo"  , "units": "cm/day"}
     nc_var_attr["meltb"]  = {"long_name": "basal ice melt"          , "units": "cm/day"}
+    nc_var_attr["meltl"]  = {"long_name": "top ice melt"            , "units": "cm/day"}
+    nc_var_attr["meltt"]  = {"long_name": "lateral ice melt"        , "units": "cm/day"}
 
     # Shared global attributes in all files:
     nc_global_attr = {}

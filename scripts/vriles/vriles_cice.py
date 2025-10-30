@@ -130,7 +130,8 @@ def main():
     # dvidt_d (total tendencies):
     #
     hist_diags = ["aice_d", "daidtd_d", "daidtt_d", "daidtt_d", "dvidtd_d",
-                  "dvidtt_d", "dvidtt_d", "fsurf_ai_d", "fcondtop_ai_d"]
+                  "dvidtt_d", "dvidtt_d", "meltb_d", "meltl_d", "meltt_d",
+                  "fsurf_ai_d", "fcondtop_ai_d"]
 
     # We pass 'hist_diags' to the diagnostic function for processing, which
     # then ends up updating the actual diagnostics after using the
@@ -139,6 +140,7 @@ def main():
 
     hist_diags_updated = ["aice_d"  , "daidtd_d", "daidtt_d"  , "daidt_d",
                                       "dvidtd_d", "dvidtt_d"  , "dvidt_d",
+                                      "meltb_d" , "meltl_d"   , "meltt_d",
                                       "seb_ai_d", "fsurf_ai_d"]
 
     def hist_diag_converter(x):
@@ -148,7 +150,8 @@ def main():
         """
         return [x[0], x[1], x[2], x[1] + x[2],  # aice, daidtd, daidtt, daidt
                       x[4], x[5], x[4] + x[5],  #       dvidtd, dvidtt, dvidt
-                      x[7] - x[8], x[7]]        #       seb_ai, fsurf_ai
+                      x[7], x[8], x[9]       ,  #       meltb , meltl , meltt
+                      x[10] - x[11], x[11]]     #       seb_ai, fsurf_ai
 
 
     # We also want some atmospheric forcing variables, which are handled by the
@@ -158,8 +161,8 @@ def main():
     avg_hist, _, avg_atmo = vrile_diagnostics.compute_averages_over_vriles(
         vrile_results, region_masks, hist_function=hist_diag_converter,
         hist_diags=hist_diags, norm_time_hist=True,
-        norm_area_hist=[True] + [False]*6 + [True]*2,
-        norm_unit_hist=[1.  ] + [1.e11]*6 + [1.  ]*2,
+        norm_area_hist=[True] + [False]*6 + [True]*3 + [True]*2,
+        norm_unit_hist=[1.  ] + [1.e11]*6 + [1.  ]*3 + [1.  ]*2,
         atmo_fields=atmo_diags, norm_time_atmo=True,
         norm_area_atmo=True, norm_unit_atmo=1., **caov_kw)
 
@@ -167,7 +170,7 @@ def main():
     #
     # daidt are in %/day = 100*fraction/day
     #     Divide by 100 to get values in fraction/day
-    #     Then integrating (norm_area_proc = False) => m^2/day
+    #     Then integrating (norm_area_hist = False) => m^2/day
     #     Then put in 10^3 km^2/day => divide by 10^9
     #     Overall, divide by 10^11 => final units 10^3 km^2/day
     #                                             =============
@@ -179,8 +182,12 @@ def main():
     #     Overall, divide by 10^11 => final units km^3/day
     #                                             ========
     #
+    # melt rates (melt*_d) are in cm/day
+    #     We just calculate mean melt rates, both time/area normalised
+    #     => no change in units
+    #
     # For seb_ai and fsurf_ai, and atmospheric fields, both time/area
-    # normalised -> no change in units.
+    # normalised => no change in units
 
     # Common first part of cached file names:
     save_file_start = f"vriles_cice_{dt_min.year}-{dt_max.year}_diagnostics"
@@ -216,6 +223,7 @@ def main():
     proc_diags  = [f"detrended_{x}_d"
                    for x in ["daidtd", "daidtt", "daidt",
                              "dvidtd", "dvidtt", "dvidt",
+                             "meltb" , "meltl" , "meltt",
                              "seb_ai", "div_strair", "curl_strair"]]
 
     atmo_fields = [f"detrended_{x}_d" for x in ["t2", "qlw", "qsw", "qnet"]]
@@ -223,8 +231,8 @@ def main():
     _, avg_proc, avg_atmo = vrile_diagnostics.compute_averages_over_vriles(
         vrile_results, region_masks, proc_metric="hist_detrended",
         proc_diags=proc_diags, norm_time_proc=True,
-        norm_area_proc=[False]*6 + [True]*3,
-        norm_unit_proc=[1.e11]*6 + [1., 1.e-7, 1.e-7],
+        norm_area_proc=[False]*6 + [True]*6,
+        norm_unit_proc=[1.e11]*6 + [1., 1., 1., 1., 1.e-7, 1.e-7],
         atmo_fields=atmo_fields, atmo_file_prefix="atmo_detrended",
         norm_time_atmo=True, norm_area_atmo=True, norm_unit_atmo=1.)
 
