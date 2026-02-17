@@ -284,8 +284,10 @@ def get_atmospheric_forcing_data(field, dt_min, dt_max, seltime=1,
 
 def get_atmospheric_reanalysis_raw_data(field, dt_min, dt_max, seltime=1,
                                         reanalysis="JRA-55-do",
-                                        auto_units=True, clip_lat=45.,
-                                        wrap_lon=True, time_nc_name="time",
+                                        auto_units=True,
+                                        psl_anomaly="psl_clim_1981-2010.nc",
+                                        clip_lat=45., wrap_lon=True,
+                                        time_nc_name="time",
                                         lonlat_nc_names=["lon", "lat"]):
     """Load raw reanalysis data (i.e., full time resolution, full spatial
     resolution and range available with no interpolation to CICE grid).
@@ -317,6 +319,13 @@ def get_atmospheric_reanalysis_raw_data(field, dt_min, dt_max, seltime=1,
 
     auto_units : bool, default = True
         Automatically convert units if appropriate. [FN2]
+
+    psl_anomaly : str or None, default = 'psl_clim_1981-2010.nc'
+        Optional special treatment when field = 'psl'. If True, also loads
+        climatology of psl which is assumed to be calculated already and saved
+        in the cfg.data_path['misc'] directory with this file name. This is
+        subtracted from the data before being returned. Ignored if this is
+        None or if field != 'psl'.
 
     clip_lat : float or None, default = 45.
         Latitude in degrees north at which to clip data, i.e., data northward
@@ -375,6 +384,11 @@ def get_atmospheric_reanalysis_raw_data(field, dt_min, dt_max, seltime=1,
 
     date = date[j_t]
     data = data[j_t]
+
+    if field == "psl" and psl_anomaly is not None:
+        # Load sea level pressure climatology and convert psl => anomaly:
+        with nc.Dataset(Path(cfg.data_path["misc"], psl_anomaly), "r") as ncdat:
+            data -= np.array(ncdat.variables["psl_clim"][:,:])[np.newaxis,:,:]
 
     if auto_units:
         auto_set_units(data, field)
