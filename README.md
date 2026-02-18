@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/1039115701.svg)](https://doi.org/10.5281/zenodo.18680510)
+
 # asc_wp7_vriles
 **Data analysis code for the Arctic Summertime Cyclones (ASC) project, work package 7 on very rapid sea ice loss events (VRILEs).**
 
