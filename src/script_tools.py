@@ -132,6 +132,59 @@ def add_track_vrile_matching_cmd_args(prsr):
     prsr.add_argument("--match-ssmi", action="store_true")
 
 
+def add_plot_cmd_args(prsr, n_figures=1, fig_names="fig1", fig_titles=None):
+    """Add general command line arguments/options for plotting to an
+    argparse.ArgumentParser() instance. Optional parameter n_figures determines
+    whether multiple options are allowed for the command line flags for saving
+    figures (default = 1).
+
+
+    Optional parameters
+    -------------------
+    n_figures : int, default = 1
+        Number of figures that might be saved.
+
+        If n_figures = 1 (default), arguments added are --savefig,
+        --savefig-name, and --savefig-title.
+
+        If n_figures > 1, arguments added are instead '--savefigs',
+        --savefig-names, and --savefig-titles, each requiring
+        n_figures options.
+
+        In both cases, '-s' is an alias for --savefig or --savefigs
+
+    fig_names : str or list of str, default = 'fig1'
+        Default figure file names without extension (corresponds to
+        --savefig-name or --savefig-names). Can also be None.
+
+    fig_titles : str or lsit of str, default = None
+        Default figure metadata titles for SVG output (corresponds to
+        --savefig-title or --savefig-titles). Can also be None.
+
+    """
+
+    if n_figures == 1:
+        prsr.add_argument("-s", "--savefig", action="store_true",
+                          help="Save figure")
+        prsr.add_argument("--savefig-name", type=str, default=fig_names,
+                          help="Figure file name (without extension)")
+        prsr.add_argument("--savefig-title", type=str, default=fig_titles,
+                          help="Title for file metadata (SVG only)")
+
+    else:
+        prsr.add_argument("-s", "--savefigs", action="store_true",
+                          help="Save all figures")
+        prsr.add_argument("--savefig-names", type=str, nargs=n_figures,
+                          default=fig_names,
+                          help="Figure file names (without extensions)")
+        prsr.add_argument("--savefig-titles", type=str, nargs=n_figures,
+                          default=fig_titles,
+                          help="Titles for file metadata (SVG only)")
+
+    prsr.add_argument("--savefig-directory", type=str, default=None,
+                      help="Directory to save figures (default in config)")
+
+
 def get_id_vriles_options(cmd, header=True, footer=True):
     """Construct dictionaries of keyword arguments to pass to function
     src.diagnostics.vriles.identify() from command-line arguments and
